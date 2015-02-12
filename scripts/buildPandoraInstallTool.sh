@@ -21,7 +21,7 @@ scram setup pandorapfanew_interface
 
 TEST=`scram tool list | grep pandorapfa | wc -l`
 
-if [ "$TEST" -eq "0"]
+if [ "$TEST" -eq "0" ]
     echo "pandora pfa was not successfullly installed :-("
     cd $startDir
     exit 1
