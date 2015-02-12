@@ -9,7 +9,7 @@
 #include "Pandora/AlgorithmHeaders.h"
 #include "Pandora/TemplateAlgorithm.h"
 
-#include "PFCal/runPandora/interface/CMSTemplateAlgorithm.h"
+#include "HGCal/PandoraTranslator/interface/CMSTemplateAlgorithm.h"
 
 using namespace pandora;
 

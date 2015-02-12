@@ -1,8 +1,8 @@
-#include "PFCal/runPandora/interface/runPandora.h"
-#include "PFCal/runPandora/interface/CMSBFieldCalculator.h"
-#include "PFCal/runPandora/interface/CMSPseudoLayerCalculator.h"
+#include "runPandora.h"
+#include "HGCal/PandoraTranslator/interface/CMSBFieldPlugin.h"
+#include "HGCal/PandoraTranslator/interface/CMSPseudoLayerPlugin.h"
 #include "LCContent.h"
-#include "PFCal/runPandora/interface/CMSTemplateAlgorithm.h"
+#include "HGCal/PandoraTranslator/interface/CMSTemplateAlgorithm.h"
 #include "PandoraMonitoringApi.h"
 
 #include "FWCore/Framework/interface/ESHandle.h"
@@ -97,8 +97,8 @@ runPandora::runPandora(const edm::ParameterSet& iConfig)
 
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, LCContent::RegisterBasicPlugins(*m_pPandora));
   
-  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetBFieldPlugin(*m_pPandora, new CMSBFieldCalculator()));	
-  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetPseudoLayerPlugin(*m_pPandora, new CMSPseudoLayerCalculator()));	
+  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetBFieldPlugin(*m_pPandora, new CMSBFieldPlugin()));	
+  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetPseudoLayerPlugin(*m_pPandora, new CMSPseudoLayerPlugin()));	
   
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::RegisterAlgorithmFactory(*m_pPandora, "Template", new CMSTemplateAlgorithm::Factory));
 

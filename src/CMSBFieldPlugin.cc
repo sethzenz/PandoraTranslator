@@ -8,35 +8,35 @@
 
 #include "Pandora/AlgorithmHeaders.h"
 
-#include "PFCal/runPandora/interface/CMSBFieldCalculator.h"
+#include "HGCal/PandoraTranslator/interface/CMSBFieldPlugin.h"
 
 using namespace pandora;
 
 namespace cms_content
 {
 
-CMSBFieldCalculator::CMSBFieldCalculator(const float innerBField) :
+CMSBFieldPlugin::CMSBFieldPlugin(const float innerBField) :
     m_innerBField(innerBField)   
 {
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-float CMSBFieldCalculator::GetBField(const CartesianVector &positionVector) const
+float CMSBFieldPlugin::GetBField(const CartesianVector &positionVector) const
 {
     return m_innerBField;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-StatusCode CMSBFieldCalculator::Initialize()
+StatusCode CMSBFieldPlugin::Initialize()
 {
     return STATUS_CODE_SUCCESS;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-StatusCode CMSBFieldCalculator::ReadSettings(const TiXmlHandle /*xmlHandle*/)
+StatusCode CMSBFieldPlugin::ReadSettings(const TiXmlHandle /*xmlHandle*/)
 {
     return STATUS_CODE_SUCCESS;
 }

@@ -8,37 +8,37 @@
 
 #include "Pandora/AlgorithmHeaders.h"
 
-#include "PFCal/runPandora/interface/CMSPseudoLayerCalculator.h"
+#include "HGCal/PandoraTranslator/interface/CMSPseudoLayerPlugin.h"
 
 using namespace pandora;
 
 namespace cms_content
 {
 
-CMSPseudoLayerCalculator::CMSPseudoLayerCalculator() :
-    m_barrelInnerR(0.f),
-    m_endCapInnerZ(0.f),    
-    m_rCorrection(0.f),
-    m_zCorrection(0.f),    
-    m_barrelEdgeR(0.f),
-    m_endCapEdgeZ(0.f)
+CMSPseudoLayerPlugin::CMSPseudoLayerPlugin() :
+  PseudoLayerPlugin(),
+  m_barrelInnerEdgeR(0.f),
+  m_barrelOuterEdgeR(0.f),
+  m_endCapInnerEdgeZ(0.f),
+  m_endCapOuterEdgeZ(0.f),
+  m_endCapOuterEdgeR(0.f)
 {
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-StatusCode CMSPseudoLayerCalculator::Initialize()
+StatusCode CMSPseudoLayerPlugin::Initialize()
 {
     try
     {
         this->StoreLayerPositions();
         this->StoreDetectorOuterEdge();
-        this->StorePolygonAngles();
-        this->StoreOverlapCorrectionDetails();
+        //this->StorePolygonAngles();
+        //this->StoreOverlapCorrectionDetails();
     }
     catch (StatusCodeException &statusCodeException)
     {
-        std::cout << "CMSPseudoLayerCalculator: Incomplete geometry - consider using a different PseudoLayerCalculator." << std::endl;
+        std::cout << "CMSPseudoLayerPlugin: Incomplete geometry - consider using a different PseudoLayerPlugin." << std::endl;
         return statusCodeException.GetStatusCode();
     }
 
@@ -47,36 +47,40 @@ StatusCode CMSPseudoLayerCalculator::Initialize()
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-unsigned int CMSPseudoLayerCalculator::GetPseudoLayer(const CartesianVector &positionVector) const
+unsigned int CMSPseudoLayerPlugin::GetPseudoLayer(const CartesianVector &positionVector) const
 {
-    const float zCoordinate(std::fabs(positionVector.GetZ()));
+  const float zCoordinate(std::fabs(positionVector.GetZ()));
+  const float rCoordinate(std::sqrt(positionVector.GetX() * positionVector.GetX() + positionVector.GetY() * positionVector.GetY()));
+  
+    if ((zCoordinate > m_endCapOuterEdgeZ) || (rCoordinate > std::max(m_barrelOuterEdgeR,m_endCapOuterEdgeR))) {
+      std::cout << "You die here because z = " << zCoordinate << " (" << m_endCapOuterEdgeZ << ") and r = " << rCoordinate 
+		<< " (" << m_barrelOuterEdgeR << "," << m_endCapOuterEdgeR << ")" << std::endl; 
+      return 0; // NS FIX temporary <=============!!!!!!!!!!!! 
+        throw pandora::StatusCodeException(pandora::STATUS_CODE_NOT_FOUND);
+    }
 
-    if (zCoordinate > m_endCapEdgeZ)
-        throw StatusCodeException(STATUS_CODE_NOT_FOUND);
+    unsigned int pseudoLayer(0);
 
-    const float rCoordinate(this->GetMaximumRadius(m_eCalBarrelAngleVector, positionVector.GetX(), positionVector.GetY()));
-    const float rCoordinateMuon(this->GetMaximumRadius(m_muonBarrelAngleVector, positionVector.GetX(), positionVector.GetY()));
-
-    if ((rCoordinateMuon > m_barrelEdgeR) || (rCoordinate > m_barrelEdgeR))
-        throw StatusCodeException(STATUS_CODE_NOT_FOUND);
-
-    unsigned int pseudoLayer;
-
-    if ((zCoordinate < m_endCapInnerZMuon) && (rCoordinateMuon < m_barrelInnerRMuon))
+    if (zCoordinate < m_endCapInnerEdgeZ)
     {
-        const StatusCode statusCode(this->GetPseudoLayer(rCoordinate, zCoordinate, m_rCorrection, m_zCorrection, m_barrelInnerR,
-            m_endCapInnerZ, pseudoLayer));
-
-        if (STATUS_CODE_SUCCESS != statusCode)
-            throw StatusCodeException(statusCode);
+        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, this->FindMatchingLayer(rCoordinate, m_barrelLayerPositions, pseudoLayer));
+    }
+    else if (rCoordinate < m_barrelInnerEdgeR)
+    {
+        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, this->FindMatchingLayer(zCoordinate, m_endCapLayerPositions, pseudoLayer));
     }
     else
     {
-        const StatusCode statusCode(this->GetPseudoLayer(rCoordinateMuon, zCoordinate, m_rCorrectionMuon, m_zCorrectionMuon,
-            m_barrelInnerRMuon, m_endCapInnerZMuon, pseudoLayer));
+        unsigned int bestBarrelLayer(0);
+        const pandora::StatusCode barrelStatusCode(this->FindMatchingLayer(rCoordinate, m_barrelLayerPositions, bestBarrelLayer));
 
-        if (STATUS_CODE_SUCCESS != statusCode)
-            throw StatusCodeException(statusCode);
+        unsigned int bestEndCapLayer(0);
+        const pandora::StatusCode endCapStatusCode(this->FindMatchingLayer(zCoordinate, m_endCapLayerPositions, bestEndCapLayer));
+
+        if ((pandora::STATUS_CODE_SUCCESS != barrelStatusCode) && (pandora::STATUS_CODE_SUCCESS != endCapStatusCode))
+            throw pandora::StatusCodeException(pandora::STATUS_CODE_NOT_FOUND);
+
+        pseudoLayer = std::max(bestBarrelLayer, bestEndCapLayer);
     }
 
     // Reserve a pseudo layer for track projections, etc.
@@ -85,36 +89,7 @@ unsigned int CMSPseudoLayerCalculator::GetPseudoLayer(const CartesianVector &pos
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-StatusCode CMSPseudoLayerCalculator::GetPseudoLayer(const float rCoordinate, const float zCoordinate, const float rCorrection,
-    const float zCorrection, const float barrelInnerR, const float endCapInnerZ, unsigned int &pseudoLayer) const
-{
-    if (zCoordinate < endCapInnerZ)
-    {
-        return this->FindMatchingLayer(rCoordinate, m_barrelLayerPositions, pseudoLayer);
-    }
-    else if (rCoordinate < barrelInnerR)
-    {
-        return this->FindMatchingLayer(zCoordinate, m_endCapLayerPositions, pseudoLayer);
-    }
-    else
-    {
-        unsigned int bestBarrelLayer(0);
-        const StatusCode barrelStatusCode(this->FindMatchingLayer(rCoordinate - rCorrection, m_barrelLayerPositions, bestBarrelLayer));
-
-        unsigned int bestEndCapLayer(0);
-        const StatusCode endCapStatusCode(this->FindMatchingLayer(zCoordinate - zCorrection, m_endCapLayerPositions, bestEndCapLayer));
-
-        if ((STATUS_CODE_SUCCESS != barrelStatusCode) && (STATUS_CODE_SUCCESS != endCapStatusCode))
-            return STATUS_CODE_NOT_FOUND;
-
-        pseudoLayer = std::max(bestBarrelLayer, bestEndCapLayer);
-        return STATUS_CODE_SUCCESS;
-    }
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-StatusCode CMSPseudoLayerCalculator::FindMatchingLayer(const float position, const LayerPositionList &layerPositionList,
+StatusCode CMSPseudoLayerPlugin::FindMatchingLayer(const float position, const LayerPositionList &layerPositionList,
     unsigned int &layer) const
 {
     LayerPositionList::const_iterator upperIter = std::upper_bound(layerPositionList.begin(), layerPositionList.end(), position);
@@ -146,19 +121,17 @@ StatusCode CMSPseudoLayerCalculator::FindMatchingLayer(const float position, con
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void CMSPseudoLayerCalculator::StoreLayerPositions()
+void CMSPseudoLayerPlugin::StoreLayerPositions()
 {
     const GeometryManager *const pGeometryManager(this->GetPandora().GetGeometry());
     this->StoreLayerPositions(pGeometryManager->GetSubDetector(ECAL_BARREL), m_barrelLayerPositions);
     this->StoreLayerPositions(pGeometryManager->GetSubDetector(ECAL_ENDCAP), m_endCapLayerPositions);
     this->StoreLayerPositions(pGeometryManager->GetSubDetector(HCAL_BARREL), m_barrelLayerPositions);
-    this->StoreLayerPositions(pGeometryManager->GetSubDetector(HCAL_ENDCAP), m_endCapLayerPositions);
-    this->StoreLayerPositions(pGeometryManager->GetSubDetector(MUON_BARREL), m_barrelLayerPositions);
-    this->StoreLayerPositions(pGeometryManager->GetSubDetector(MUON_ENDCAP), m_endCapLayerPositions);
+    this->StoreLayerPositions(pGeometryManager->GetSubDetector(HCAL_ENDCAP), m_endCapLayerPositions);    
 
     if (m_barrelLayerPositions.empty() || m_endCapLayerPositions.empty())
     {
-        std::cout << "CMSPseudoLayerCalculator: No layer positions specified." << std::endl;
+        std::cout << "CMSPseudoLayerPlugin: No layer positions specified." << std::endl;
         throw StatusCodeException(STATUS_CODE_NOT_INITIALIZED);
     }
 
@@ -170,18 +143,18 @@ void CMSPseudoLayerCalculator::StoreLayerPositions()
 
     if ((m_barrelLayerPositions.end() != barrelIter) || (m_endCapLayerPositions.end() != endcapIter))
     {
-        std::cout << "CMSPseudoLayerCalculator: Duplicate layer position detected." << std::endl;
+        std::cout << "CMSPseudoLayerPlugin: Duplicate layer position detected." << std::endl;
         throw StatusCodeException(STATUS_CODE_FAILURE);
     }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void CMSPseudoLayerCalculator::StoreLayerPositions(const SubDetector &subDetector, LayerPositionList &layerPositionList)
+void CMSPseudoLayerPlugin::StoreLayerPositions(const SubDetector &subDetector, LayerPositionList &layerPositionList)
 {
     if (!subDetector.IsMirroredInZ())
     {
-        std::cout << "CMSPseudoLayerCalculator: Error, detector must be symmetrical about z=0 plane." << std::endl;
+        std::cout << "CMSPseudoLayerPlugin: Error, detector must be symmetrical about z=0 plane." << std::endl;
         throw StatusCodeException(STATUS_CODE_INVALID_PARAMETER);
     }
 
@@ -195,101 +168,40 @@ void CMSPseudoLayerCalculator::StoreLayerPositions(const SubDetector &subDetecto
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void CMSPseudoLayerCalculator::StoreDetectorOuterEdge()
+void CMSPseudoLayerPlugin::StoreDetectorOuterEdge()
 {
-    const GeometryManager *const pGeometryManager(this->GetPandora().GetGeometry());
-
-    m_barrelEdgeR = (std::max(pGeometryManager->GetSubDetector(ECAL_BARREL).GetOuterRCoordinate(), std::max(
-        pGeometryManager->GetSubDetector(HCAL_BARREL).GetOuterRCoordinate(),
-        pGeometryManager->GetSubDetector(MUON_BARREL).GetOuterRCoordinate()) ));
-
-    m_endCapEdgeZ = (std::max(std::fabs(pGeometryManager->GetSubDetector(ECAL_ENDCAP).GetOuterZCoordinate()), std::max(
-        std::fabs(pGeometryManager->GetSubDetector(HCAL_ENDCAP).GetOuterZCoordinate()),
-        std::fabs(pGeometryManager->GetSubDetector(MUON_ENDCAP).GetOuterZCoordinate())) ));
-
-    if ((m_barrelLayerPositions.end() != std::upper_bound(m_barrelLayerPositions.begin(), m_barrelLayerPositions.end(), m_barrelEdgeR)) ||
-        (m_endCapLayerPositions.end() != std::upper_bound(m_endCapLayerPositions.begin(), m_endCapLayerPositions.end(), m_endCapEdgeZ)))
+  const GeometryManager *const pGeometryManager(this->GetPandora().GetGeometry());
+  
+  const SubDetector& ecalBarrel = pGeometryManager->GetSubDetector(ECAL_BARREL);
+  const SubDetector& hcalBarrel = pGeometryManager->GetSubDetector(ECAL_BARREL);
+  const SubDetector& ecalEndCap = pGeometryManager->GetSubDetector(ECAL_BARREL);
+  const SubDetector& hcalEndCap = pGeometryManager->GetSubDetector(ECAL_BARREL);
+  
+  m_barrelInnerEdgeR = ecalBarrel.GetInnerRCoordinate(); 
+  // m_barrelInnerEdgeR = hcalBarrelParameters.GetInnerRCoordinate(); // debugging
+  m_barrelOuterEdgeR = hcalBarrel.GetOuterRCoordinate(); 
+  // m_barrelOuterEdgeR = ecalBarrelParameters.GetOuterRCoordinate(); // debugging
+  m_endCapOuterEdgeR = std::max(ecalEndCap.GetOuterRCoordinate(),hcalEndCap.GetOuterRCoordinate()); 
+  // m_endcapOuterEdgeR = ecalEndCapParameters.GetOuterRCoordinate() ; // debugging
+  m_endCapInnerEdgeZ = ecalEndCap.GetInnerZCoordinate(); 
+  // m_endCapInnerEdgeZ = hcalEndCapParameters.GetInnerZCoordinate(); // debugging
+  m_endCapOuterEdgeZ = hcalEndCap.GetOuterZCoordinate(); // debugging
+  
+  if ((m_barrelLayerPositions.end() != std::upper_bound(m_barrelLayerPositions.begin(), m_barrelLayerPositions.end(), m_barrelOuterEdgeR)) ||
+      (m_endCapLayerPositions.end() != std::upper_bound(m_endCapLayerPositions.begin(), m_endCapLayerPositions.end(), m_endCapOuterEdgeZ))) 
+  // if ((m_barrelLayerPositions.end() != std::upper_bound(m_barrelLayerPositions.begin(), m_barrelLayerPositions.end(), m_barrelOuterEdgeR)))
     {
-        std::cout << "CMSPseudoLayerCalculator: Layers specified outside detector edge." << std::endl;
-        throw StatusCodeException(STATUS_CODE_FAILURE);
+      std::cout << "FineGranularityPseudoLayerCalculator: Layers specified outside detector edge." << std::endl;
+      throw pandora::StatusCodeException(pandora::STATUS_CODE_FAILURE);
     }
 
-    m_barrelLayerPositions.push_back(m_barrelEdgeR);
-    m_endCapLayerPositions.push_back(m_endCapEdgeZ);
+  m_barrelLayerPositions.push_back(m_barrelOuterEdgeR);
+  m_endCapLayerPositions.push_back(m_endCapOuterEdgeZ);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void CMSPseudoLayerCalculator::StorePolygonAngles()
-{
-    const GeometryManager *const pGeometryManager(this->GetPandora().GetGeometry());
-
-    this->FillAngleVector(pGeometryManager->GetSubDetector(ECAL_BARREL).GetInnerSymmetryOrder(),
-        pGeometryManager->GetSubDetector(ECAL_BARREL).GetInnerPhiCoordinate(), m_eCalBarrelAngleVector);
-
-    this->FillAngleVector(pGeometryManager->GetSubDetector(MUON_BARREL).GetInnerSymmetryOrder(),
-        pGeometryManager->GetSubDetector(MUON_BARREL).GetInnerPhiCoordinate(), m_muonBarrelAngleVector);
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void CMSPseudoLayerCalculator::StoreOverlapCorrectionDetails()
-{
-    const GeometryManager *const pGeometryManager(this->GetPandora().GetGeometry());
-
-    m_barrelInnerR = pGeometryManager->GetSubDetector(ECAL_BARREL).GetInnerRCoordinate();
-    m_endCapInnerZ = std::fabs(pGeometryManager->GetSubDetector(ECAL_ENDCAP).GetInnerZCoordinate());
-    m_barrelInnerRMuon = pGeometryManager->GetSubDetector(MUON_BARREL).GetInnerRCoordinate();
-    m_endCapInnerZMuon = std::fabs(pGeometryManager->GetSubDetector(MUON_ENDCAP).GetInnerZCoordinate());
-
-    const float barrelOuterZ = std::fabs(pGeometryManager->GetSubDetector(ECAL_BARREL).GetOuterZCoordinate());
-    const float endCapOuterR = pGeometryManager->GetSubDetector(ECAL_ENDCAP).GetOuterRCoordinate();
-    const float barrelOuterZMuon = std::fabs(pGeometryManager->GetSubDetector(MUON_BARREL).GetOuterZCoordinate());
-    const float endCapOuterRMuon = pGeometryManager->GetSubDetector(MUON_ENDCAP).GetOuterRCoordinate();
-
-    const bool IsEnclosingEndCap(endCapOuterR > m_barrelInnerR);
-    m_rCorrection = ((!IsEnclosingEndCap) ? 0.f : m_barrelInnerR * ((m_endCapInnerZ / barrelOuterZ) - 1.f));
-    m_zCorrection = ((IsEnclosingEndCap) ? 0.f : m_endCapInnerZ * ((m_barrelInnerR / endCapOuterR) - 1.f));
-    m_rCorrectionMuon = ((!IsEnclosingEndCap) ? 0.f : m_barrelInnerRMuon * ((m_endCapInnerZMuon / barrelOuterZMuon) - 1.f));
-    m_zCorrectionMuon = ((IsEnclosingEndCap) ? 0.f : m_endCapInnerZMuon * ((m_barrelInnerRMuon / endCapOuterRMuon) - 1.f));
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-float CMSPseudoLayerCalculator::GetMaximumRadius(const AngleVector &angleVector, const float x, const float y) const
-{
-    if (angleVector.size() <= 2)
-        return std::sqrt((x * x) + (y * y));
-
-    float maxRadius(0.);
-    for (AngleVector::const_iterator iter = angleVector.begin(), iterEnd = angleVector.end(); iter != iterEnd; ++iter)
-    {
-        const float radius((x * iter->first) + (y * iter->second));
-
-        if (radius > maxRadius)
-            maxRadius = radius;
-    }
-
-    return maxRadius;
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-void CMSPseudoLayerCalculator::FillAngleVector(const unsigned int symmetryOrder, const float phi0, AngleVector &angleVector) const
-{
-    const float twoPi = static_cast<float>(2. * std::acos(-1.));
-    angleVector.clear();
-
-    for (unsigned int iSymmetry = 0; iSymmetry < symmetryOrder; ++iSymmetry)
-    {
-        const float phi = phi0 + ((twoPi * static_cast<float>(iSymmetry)) / static_cast<float>(symmetryOrder));
-        angleVector.push_back(std::make_pair(std::cos(phi), std::sin(phi)));
-    }
-}
-
-//------------------------------------------------------------------------------------------------------------------------------------------
-
-StatusCode CMSPseudoLayerCalculator::ReadSettings(const TiXmlHandle /*xmlHandle*/)
+StatusCode CMSPseudoLayerPlugin::ReadSettings(const TiXmlHandle /*xmlHandle*/)
 {
     return STATUS_CODE_SUCCESS;
 }

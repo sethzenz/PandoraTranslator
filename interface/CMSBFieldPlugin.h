@@ -6,8 +6,8 @@
  *  $Log: $
  */
 
-#ifndef LC_BFIELD_CALCULATOR_H
-#define LC_BFIELD_CALCULATOR_H 1
+#ifndef CMS_BFIELD_PLUGIN_H
+#define CMS_BFIELD_PLUGIN_H 1
 
 #include "Plugins/BFieldPlugin.h"
 
@@ -15,9 +15,9 @@ namespace cms_content
 {
 
 /**
- *  @brief  CMSBFieldCalculator class
+ *  @brief  CMSBFieldPlugin class
  */
-class CMSBFieldCalculator : public pandora::BFieldPlugin
+class CMSBFieldPlugin : public pandora::BFieldPlugin
 {
 public:
     /**
@@ -25,7 +25,7 @@ public:
      * 
      *  @param  innerBField the bfield in the main tracker, ecal and hcal, units Tesla     
      */
-    CMSBFieldCalculator(const float innerBField = 3.8f);
+    CMSBFieldPlugin(const float innerBField = 3.8f);
 
     float GetBField(const pandora::CartesianVector &positionVector) const;
 
