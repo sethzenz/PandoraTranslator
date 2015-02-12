@@ -4,11 +4,11 @@
   <lib name="PandoraSDK"/>
   <lib name="PandoraMonitoring"/>
    <client>
-    <environment name="PANDORA_INTERFACE_BASE" default="$CMSSW_BASE/src"/>
-    <environment name="PANDORA_SDK_INCLUDE"    default="$PANDORA_INTERFACE_BASE/PandoraPFA/PandoraSDK/include"/>
-    <environment name="PANDORA_LCCONTENT_INCLUDE" default="$PANDORA_INTERFACE_BASE/PandoraPFA/LCContent/include"/>
-    <environment name="PANDORA_MONITORING_INCLUDE" default="$PANDORA_INTERFACE_BASE/PandoraPFA/PandoraMonitoring/include"/>
-    <environment name="LIBDIR"             default="$PANDORA_INTERFACE_BASE/PandoraPFA/lib"/>
+    <environment name="PANDORA_INTERFACE_BASE" default="$CMSSW_BASE/src/PandoraPFA"/>
+    <environment name="PANDORA_SDK_INCLUDE"    default="$PANDORA_INTERFACE_BASE/PandoraSDK/include"/>
+    <environment name="PANDORA_LCCONTENT_INCLUDE" default="$PANDORA_INTERFACE_BASE/LCContent/include"/>
+    <environment name="PANDORA_MONITORING_INCLUDE" default="$PANDORA_INTERFACE_BASE/PandoraMonitoring/include"/>
+    <environment name="LIBDIR"             default="$PANDORA_INTERFACE_BASE/lib"/>
     <environment name="INCLUDE" value="$PANDORA_SDK_INCLUDE"/>
     <environment name="INCLUDE" value="$PANDORA_LCCONTENT_INCLUDE"/>
     <environment name="INCLUDE" value="$PANDORA_MONITORING_INCLUDE"/>
