@@ -1,6 +1,5 @@
 <use name="pandorapfanew_interface"/>
 <use name="HGCal/PandoraTranslator"/>
-
 <use name="FWCore/Framework"/>
 <use name="FWCore/PluginManager"/>
 <use name="FWCore/ParameterSet"/>
@@ -39,6 +38,6 @@
 <use name="FWCore/RootAutoLibraryLoader"/>
 <use name="rootcint"/>
 
-<library   file="*.cc" name="HGCalPandoraTranslator">
+<library file="*.cc" name="HGCalPandoraTranslatorPlugins">
    <flags EDM_PLUGIN="1"/>
 </library>
