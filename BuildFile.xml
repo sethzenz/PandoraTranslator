@@ -1,5 +1,2 @@
 <use name="pandorapfanew_interface"/>
 
-<library   file="*.cc" name="HGCalPandoraTranslator">
-   <flags EDM_PLUGIN="1"/>
-</library>

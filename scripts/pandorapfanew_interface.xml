@@ -4,6 +4,7 @@
   <lib name="PandoraSDK"/>
   <lib name="PandoraMonitoring"/>
    <client>
+    <environment name="PANDORA_DIR" default="$CMSSW_BASE/src/PandoraPFA"/>
     <environment name="PANDORA_INTERFACE_BASE" default="$CMSSW_BASE/src/PandoraPFA"/>
     <environment name="PANDORA_SDK_INCLUDE"    default="$PANDORA_INTERFACE_BASE/PandoraSDK/include"/>
     <environment name="PANDORA_LCCONTENT_INCLUDE" default="$PANDORA_INTERFACE_BASE/LCContent/include"/>
