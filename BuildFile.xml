@@ -1,2 +1,5 @@
 <use name="pandorapfanew_interface"/>
 
+<export>
+  <lib   name="1"/>
+</export>
