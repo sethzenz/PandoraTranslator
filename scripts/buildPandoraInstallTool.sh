@@ -8,9 +8,9 @@ fi
 startDir=`pwd`
 cd ${CMSSW_BASE}/src
 git clone https://github.com/lgray/PandoraPFA.git ./PandoraPFA
-git clone https://github.com/lgray/PandoraSDK.git ./PandoraSDK
-git clone https://github.com/lgray/PandoraMonitoring.git ./PandoraMonitoring
-git clone https://github.com/lgray/LCContent.git ./LCContent
+git clone https://github.com/lgray/PandoraSDK.git ./PandoraPFA/PandoraSDK
+git clone https://github.com/lgray/PandoraMonitoring.git ./PandoraPFA/PandoraMonitoring
+git clone https://github.com/lgray/LCContent.git ./PandoraPFA/LCContent
 export PANDORA_DIR=${CMSSW_BASE}/src/PandoraPFA
 mkdir -p $PANDORA_DIR/lib
 cd PandoraPFA/
