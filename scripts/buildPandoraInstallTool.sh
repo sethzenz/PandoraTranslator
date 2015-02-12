@@ -14,7 +14,7 @@ git clone https://github.com/lgray/LCContent.git ./PandoraPFA/LCContent
 export PANDORA_DIR=${CMSSW_BASE}/src/PandoraPFA
 mkdir -p $PANDORA_DIR/lib
 cd PandoraPFA/
-make -j 9
+MONITORING=1 make -j 9
 
 cp ${CMSSW_BASE}/src/HGCal/PandoraTranslator/scripts/pandorapfanew_interface.xml ${CMSSW_BASE}/config/toolbox/${SCRAM_ARCH}/tools/selected
 scram setup pandorapfanew_interface
