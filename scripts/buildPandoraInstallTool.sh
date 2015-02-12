@@ -23,7 +23,9 @@ TEST=`scram tool list | grep pandorapfa | wc -l`
 
 if [ "$TEST" -eq "0"]
     echo "pandora pfa was not successfullly installed :-("
+    cd $startDir
     exit 1
 fi
 
 echo "you can now link to the pandora libraries through scram!"
+cd $startDir
