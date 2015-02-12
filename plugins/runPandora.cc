@@ -2091,9 +2091,9 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
         ClusterVector clusterVector(clusterList.begin(), clusterList.end());
         ene_em  =0;
         ene_had =0;
-
-        PseudoLayer firstLayer = std::numeric_limits<unsigned int>::max();
-        PseudoLayer lastLayer = 0;
+ 
+        unsigned int firstLayer = std::numeric_limits<unsigned int>::max();
+        unsigned int lastLayer = 0;
 
     for (ClusterVector::const_iterator clusterIter = clusterVector.begin(), clusterIterEnd = clusterVector.end();
         clusterIter != clusterIterEnd; ++clusterIter)
@@ -2111,7 +2111,7 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
         {
         const CaloHit *pCaloHit = (*hitIter);
         // Determing extremal pseudolayers
-        const PseudoLayer pseudoLayer(pCaloHit->GetPseudoLayer());
+        const unsigned int pseudoLayer(pCaloHit->GetPseudoLayer());
         if (pseudoLayer > lastLayer)
             lastLayer = pseudoLayer;
         if (pseudoLayer < firstLayer)
