@@ -22,6 +22,8 @@
 <use name="SimDataFormats/GeneratorProducts"/>
 <use name="SimTracker/TrackAssociation"/>
 <use name="DQMServices/Core"/>
+<use name="TrackingTools/MaterialEffects"/>
+<use name="DataFormats/ParticleFlowReco"/>
 <use name="root"/>
 <use name="rootmathcore"/>
 <use name="rootcore"/>
