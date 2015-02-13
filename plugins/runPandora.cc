@@ -544,7 +544,7 @@ void runPandora::CalculateCornerSubDetectorParameters(const CaloSubdetectorGeome
   // Inner radius taken as average magnitude of (x,y) for corners 0-3
   // Outer radius taken as average magnitude of (x,y) for corners 4-7  
   double ci_barrel[4] = {0,1,2,3};
-  double co_barrel[4] = {0,1,2,3};
+  double co_barrel[4] = {4,5,6,7};
   
   //endcap:
   // Inner radius taken as average magnitude of (x,y) for corners 0,3,4,7 
