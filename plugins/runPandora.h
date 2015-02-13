@@ -39,6 +39,8 @@
 #include "Objects/Cluster.h"
 #include "Objects/Track.h"
 
+#include "Geometry/CaloGeometry/interface/CaloSubdetectorGeometry.h"
+
 #include "DataFormats/EcalRecHit/interface/EcalRecHit.h"
 #include "DataFormats/EcalRecHit/interface/EcalRecHitCollections.h"
 #include "DataFormats/RecoCandidate/interface/TrackAssociation.h"
@@ -86,7 +88,16 @@ public:
 
   void preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSetup);
   void prepareGeometry(const edm::EventSetup& iSetup);
-
+  void SetDefaultSubDetectorParameters(const std::string &subDetectorName, const pandora::SubDetectorType subDetectorType, PandoraApi::Geometry::SubDetector::Parameters &parameters) const;
+  void CalculateCornerSubDetectorParameters(const CaloSubdetectorGeometry& geom,  const std::vector<DetId>& cells, const pandora::SubDetectorType subDetectorType, 
+                                            double& min_innerRadius, double& max_outerRadius, double& min_innerZ, double& max_outerZ,
+											bool doLayers, std::vector<double>& min_innerR_depth, std::vector<double>& min_innerZ_depth) const;
+  void SetCornerSubDetectorParameters(PandoraApi::Geometry::SubDetector::Parameters &parameters, 
+                                      const double& min_innerRadius, const double& max_outerRadius, const double& min_innerZ, const double& max_outerZ) const;
+  void SetSingleLayerParameters(PandoraApi::Geometry::SubDetector::Parameters &parameters, PandoraApi::Geometry::LayerParameters &layerParameters) const;
+  void SetMultiLayerParameters(PandoraApi::Geometry::SubDetector::Parameters &parameters, std::vector<PandoraApi::Geometry::LayerParameters*> &layerParameters,
+                               std::vector<double>& min_innerR_depth, std::vector<double>& min_innerZ_depth, const unsigned int& nTotalLayers, int& nLayers) const;
+										 
   TrackingParticleRefVector getTpSiblings(TrackingParticleRef tp);
   TrackingParticleRefVector getTpDaughters(TrackingParticleRef tp);
 
