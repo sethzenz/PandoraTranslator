@@ -72,7 +72,7 @@ runPandora::runPandora(const edm::ParameterSet& iConfig)
   //now do what ever initialization is needed
   m_pPandora = new pandora::Pandora();
 
-  stm = new steerManager("energyWeight.txt");
+  //stm = new steerManager("energyWeight.txt");
 
   //mFileNames  = iConfig.getParameter<std::vector<std::string> > ("filenames"); 
   inputTagEcalRecHitsEB_ = iConfig.getParameter<InputTag>("ecalRecHitsEB");
@@ -83,19 +83,20 @@ runPandora::runPandora(const edm::ParameterSet& iConfig)
   inputTagGeneralTracks_ = iConfig.getParameter< std::vector < InputTag > >("generaltracks");
   inputTagtPRecoTrackAsssociation_ = iConfig.getParameter<InputTag>("tPRecoTrackAsssociation");
   inputTagGenParticles_ = iConfig.getParameter<InputTag>("genParticles");
-  m_pandoraSettingsXmlFile = iConfig.getParameter<std::string>("inputconfigfile");
+  m_pandoraSettingsXmlFile = iConfig.getParameter<edm::FileInPath>("inputconfigfile");
 
-  m_calibrationParameterFile = iConfig.getParameter<std::string>("calibrParFile");
+  m_calibrationParameterFile = iConfig.getParameter<edm::FileInPath>("calibrParFile");
   m_energyCorrMethod = iConfig.getParameter<std::string>("energyCorrMethod");
-  m_energyWeightingFilename  = iConfig.getParameter<std::string>("energyWeightFile");
+  m_energyWeightingFilename  = iConfig.getParameter<edm::FileInPath>("energyWeightFile");
   _outputFileName = iConfig.getParameter<std::string>("outputFile");
 
+  stm = new steerManager(m_energyWeightingFilename.fullPath().c_str());
   
 // NS // SHOWER PROFILE CALCULATOR
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetShowerProfilePlugin(*m_pPandora,new LCShowerProfilePlugin()));
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, LCContent::RegisterAlgorithms(*m_pPandora));
 
-  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, LCContent::RegisterBasicPlugins(*m_pPandora));
+  //PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, LCContent::RegisterBasicPlugins(*m_pPandora));
   
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetBFieldPlugin(*m_pPandora, new CMSBFieldPlugin()));    
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetPseudoLayerPlugin(*m_pPandora, new CMSPseudoLayerPlugin()));    
@@ -133,7 +134,7 @@ void runPandora::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
     std::cout << "At the first event...preparing geometry" << std::endl ; 
     prepareGeometry(iSetup) ; 
     std::cout << "Done with Geometry setup...moving along" << std::endl ; 
-    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::ReadSettings(*m_pPandora, m_pandoraSettingsXmlFile));
+    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::ReadSettings(*m_pPandora, m_pandoraSettingsXmlFile.fullPath()));
 
   }
 
@@ -250,7 +251,7 @@ void runPandora::initPandoraCalibrParameters()
 void runPandora::readCalibrParameterFile()
 {
 
-   std::ifstream calibrParFile(m_calibrationParameterFile , std::ifstream::in );
+  std::ifstream calibrParFile(m_calibrationParameterFile.fullPath().c_str() , std::ifstream::in );
 
    if (!calibrParFile.is_open()) {
       std::cout << "runPandora::readCalibrParameterFile: calibrParFile does not exist ("

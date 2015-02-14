@@ -102,10 +102,10 @@ public:
   TrackingParticleRefVector getTpDaughters(TrackingParticleRef tp);
 
   std::string _outputFileName;
-  std::string m_pandoraSettingsXmlFile;
+  edm::FileInPath m_pandoraSettingsXmlFile;
 
-  std::string m_calibrationParameterFile;
-  std::string m_energyWeightingFilename;
+  edm::FileInPath m_calibrationParameterFile;
+  edm::FileInPath m_energyWeightingFilename;
 
   std::string m_energyCorrMethod; //energy correction method
 
