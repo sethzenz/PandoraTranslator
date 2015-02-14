@@ -63,6 +63,19 @@ using namespace cms_content;
 enum { D_HGCEE, D_HGCHEF, D_HGCHEB };
 enum { EM, HAD };
 
+namespace cms_content {
+  pandora::StatusCode RegisterBasicPlugins(const pandora::Pandora &pandora)
+  {
+    LC_ENERGY_CORRECTION_LIST(PANDORA_REGISTER_ENERGY_CORRECTION);
+    LC_PARTICLE_ID_LIST(PANDORA_REGISTER_PARTICLE_ID);
+
+    PANDORA_RETURN_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetPseudoLayerPlugin(pandora, new cms_content::CMSPseudoLayerPlugin));
+    PANDORA_RETURN_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetShowerProfilePlugin(pandora, new lc_content::LCShowerProfilePlugin));
+
+    return pandora::STATUS_CODE_SUCCESS;
+  }
+}
+
 pandora::Pandora * runPandora::m_pPandora = NULL;
 //
 // constructors and destructor
@@ -93,13 +106,12 @@ runPandora::runPandora(const edm::ParameterSet& iConfig)
   stm = new steerManager(m_energyWeightingFilename.fullPath().c_str());
   
 // NS // SHOWER PROFILE CALCULATOR
-  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetShowerProfilePlugin(*m_pPandora,new LCShowerProfilePlugin()));
+  
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, LCContent::RegisterAlgorithms(*m_pPandora));
 
-  //PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, LCContent::RegisterBasicPlugins(*m_pPandora));
-  
+  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, cms_content::RegisterBasicPlugins(*m_pPandora));
+
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetBFieldPlugin(*m_pPandora, new CMSBFieldPlugin()));    
-  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetPseudoLayerPlugin(*m_pPandora, new CMSPseudoLayerPlugin()));    
   
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::RegisterAlgorithmFactory(*m_pPandora, "Template", new CMSTemplateAlgorithm::Factory));
 
