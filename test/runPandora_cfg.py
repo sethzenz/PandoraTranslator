@@ -8,7 +8,7 @@ process.load("FWCore.MessageService.MessageLogger_cfi")
 process.load("RecoLocalCalo.CaloTowersCreator.calotowermaker_cfi")
 
 # No data of type "HGCalGeometry" with label "HGCalEESensitive" in record "IdealGeometryRecord"
-process.load('Configuration.Geometry.GeometryExtended2023HGCalV4MuonReco_cff')
+process.load('Configuration.Geometry.GeometryExtended2023HGCalMuonReco_cff')
 
 #The below three lines were added to solve an error Exception Message:
 #No "CaloGeometryRecord" record found in the EventSetup.
@@ -46,7 +46,7 @@ process.source = cms.Source("PoolSource",
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePiPt20.root'
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleElectronPt35.root'
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleGammaPt35.root'
-        'file:INPUT'
+        'root://eoscms//store/relval/CMSSW_6_2_0_SLHC23_patch1/RelValSingleGammaPt35Extended/GEN-SIM-RECO/PH2_1K_FB_V6_UPGHGCalV5-v2/00000/12F8DC0F-519F-E411-8DB2-02163E00EB92.root'
 #         'root://eoscms//eos/cms/store/group/phys_b2g/apsallid/hg/SinglePiPt10/Step3Files/step3_2.root' 
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleElectronPt50.root'
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePi0E20.root'
@@ -68,15 +68,15 @@ process.pandorapfanew = cms.EDAnalyzer('runPandora',
 #    inputconfigfile = cms.string('PandoraSettingsDefault_WithoutMonitoring.xml'),
 #    inputconfigfile = cms.string('PandoraSettingsDefault.xml'),
 #    inputconfigfile = cms.string('PandoraSettingsBasic.xml'),
-    inputconfigfile = cms.string('PandoraSettingsBasic_WithoutMonitoring.xml'),
+    inputconfigfile = cms.FileInPath('HGCal/PandoraTranslator/data/PandoraSettingsBasic_cms.xml'),
 #    inputconfigfile = cms.string('PandoraSettingsMuon.xml')
 
     energyCorrMethod = cms.string('ABSCORR'),
 #   absorber thickness correction
 #   energyCorrMethod = cms.string('WEIGHTING'),
-    energyWeightFile = cms.string('energyWeight.txt'),
+    energyWeightFile = cms.FileInPath('HGCal/PandoraTranslator/data/energyWeight.txt'),
 
-    calibrParFile = cms.string('pandoraCalibrPars.txt'),
+    calibrParFile = cms.FileInPath('HGCal/PandoraTranslator/data/pandoraCalibrPars.txt'),
     outputFile = cms.string('pandoraoutput.root')
 )
 

@@ -173,9 +173,9 @@ void CMSPseudoLayerPlugin::StoreDetectorOuterEdge()
   const GeometryManager *const pGeometryManager(this->GetPandora().GetGeometry());
   
   const SubDetector& ecalBarrel = pGeometryManager->GetSubDetector(ECAL_BARREL);
-  const SubDetector& hcalBarrel = pGeometryManager->GetSubDetector(ECAL_BARREL);
-  const SubDetector& ecalEndCap = pGeometryManager->GetSubDetector(ECAL_BARREL);
-  const SubDetector& hcalEndCap = pGeometryManager->GetSubDetector(ECAL_BARREL);
+  const SubDetector& hcalBarrel = pGeometryManager->GetSubDetector(HCAL_BARREL);
+  const SubDetector& ecalEndCap = pGeometryManager->GetSubDetector(ECAL_ENDCAP);
+  const SubDetector& hcalEndCap = pGeometryManager->GetSubDetector(HCAL_ENDCAP);
   
   m_barrelInnerEdgeR = ecalBarrel.GetInnerRCoordinate(); 
   // m_barrelInnerEdgeR = hcalBarrelParameters.GetInnerRCoordinate(); // debugging
@@ -191,6 +191,7 @@ void CMSPseudoLayerPlugin::StoreDetectorOuterEdge()
       (m_endCapLayerPositions.end() != std::upper_bound(m_endCapLayerPositions.begin(), m_endCapLayerPositions.end(), m_endCapOuterEdgeZ))) 
   // if ((m_barrelLayerPositions.end() != std::upper_bound(m_barrelLayerPositions.begin(), m_barrelLayerPositions.end(), m_barrelOuterEdgeR)))
     {
+      std::cout << m_barrelOuterEdgeR << ' ' << m_endCapOuterEdgeZ << std::endl;
       std::cout << "FineGranularityPseudoLayerCalculator: Layers specified outside detector edge." << std::endl;
       throw pandora::StatusCodeException(pandora::STATUS_CODE_FAILURE);
     }
