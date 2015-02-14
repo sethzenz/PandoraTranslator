@@ -1781,6 +1781,7 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
     // hard ionization, Bremsstrahlung, elastic interactions, etc. then the vertex of the daughter particle is the endpoint.
     parameters.m_endpoint = pandora::CartesianVector(pa->vx() * 10. , pa->vy() * 10., pa->vz() * 10. ); //IS THIS CORRECT?! //NO, should be where it starts to decay
     parameters.m_particleId = pa->pdgId();
+    parameters.m_mcParticleType = pandora::MCParticleType::MC_3D;
     parameters.m_pParentAddress = (void*) pa;
     if(i==0) std::cout << "The mc particle pdg id " << pa->pdgId() << " with energy " << pa->energy() << std::endl;
     PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*m_pPandora, parameters));  
