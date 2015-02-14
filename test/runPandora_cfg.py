@@ -29,6 +29,14 @@ from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:upgradePLS3', '')
 # process.GlobalTag.globaltag = 'START70_V1::All'
 
+process.TrackAssociatorRecord = cms.ESSource("EmptyESSource",
+        recordName = cms.string('TrackAssociatorRecord'),
+        iovIsRunNotTime = cms.bool(True),
+        firstValid = cms.vuint32(1)
+)
+process.load('SimTracker.TrackAssociation.quickTrackAssociatorByHits_cfi')
+
+
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 
 # this is for the event display 
@@ -46,7 +54,7 @@ process.source = cms.Source("PoolSource",
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePiPt20.root'
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleElectronPt35.root'
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleGammaPt35.root'
-        'root://eoscms//store/relval/CMSSW_6_2_0_SLHC23_patch1/RelValSingleGammaPt35Extended/GEN-SIM-RECO/PH2_1K_FB_V6_UPGHGCalV5-v2/00000/12F8DC0F-519F-E411-8DB2-02163E00EB92.root'
+        'file:/afs/cern.ch/user/l/lgray/work/private/CMSSW_6_2_0_SLHC23_patch2/src/matrix_tests/step3.root'
 #         'root://eoscms//eos/cms/store/group/phys_b2g/apsallid/hg/SinglePiPt10/Step3Files/step3_2.root' 
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleElectronPt50.root'
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePi0E20.root'
@@ -55,6 +63,14 @@ process.source = cms.Source("PoolSource",
 )
 
 process.source.skipEvents = cms.untracked.uint32(0)
+
+process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
+    "TrackAssociatorEDProducer",
+    label_tr = cms.InputTag("generalTracks"),
+    associator = cms.string('quickTrackAssociatorByHits'),
+    label_tp = cms.InputTag("mix","MergedTrackTruth"),
+    ignoremissingtrackcollection = cms.untracked.bool(False)
+    )
 
 process.pandorapfanew = cms.EDAnalyzer('runPandora',
     ecalRecHitsEB = cms.InputTag("ecalRecHit","EcalRecHitsEB"),
@@ -81,4 +97,4 @@ process.pandorapfanew = cms.EDAnalyzer('runPandora',
 )
 
 
-process.p = cms.Path(process.pandorapfanew)
+process.p = cms.Path(process.trackingParticleRecoTrackAsssociation*process.pandorapfanew)
