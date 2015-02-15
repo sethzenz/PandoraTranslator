@@ -3,6 +3,8 @@
 // Splits a track collection into two, based on whether they propagate to the HGCal or not
 // Tracks with bad pt resolution (suspected fakes) are dropped and not in either collection
 
+#include "FWCore/Framework/interface/MakerMacros.h"
+
 #include "RecoParticleFlow/PFClusterProducer/interface/InitialClusteringStepBase.h"
 #include "DataFormats/ParticleFlowReco/interface/PFRecHitFraction.h"
 #include "FWCore/MessageLogger/interface/MessageLogger.h"
@@ -74,6 +76,8 @@ HGCalTrackCollectionProducer::HGCalTrackCollectionProducer(const edm::ParameterS
 {
   _debug = true; // That's right, I hard-coded debug-mode.
 
+  std::cout << " HGCalTrackCollectionProducer::HGCalTrackCollectionProducer " << std::endl;
+
   const edm::ParameterSet& geoconf = iConfig.getParameterSet("hgcalGeometryNames");
   _hgc_names[0] = geoconf.getParameter<std::string>("HGC_ECAL");
   _hgc_names[1] = geoconf.getParameter<std::string>("HGC_HCALF");
@@ -134,7 +138,7 @@ void HGCalTrackCollectionProducer::produce(edm::Event & evt, const edm::EventSet
 
   for ( unsigned int i = 0 ; i < tracks.size() ; i++) {
     bool isGood = goodPtResolution(tracks[i]->trackRef());
-    if (_debug) std::cout << "Track number " << i << " has a goodPtResolution result of" << isGood << std::endl;
+    if (_debug) std::cout << "HGCalTrackCollectionProducer Track number " << i << " has a goodPtResolution result of" << isGood << std::endl;
     if (!isGood) continue;
     const TrajectoryStateOnSurface myTSOS = trajectoryStateTransform::outerStateOnSurface(*(tracks[i]->trackRef()), *(_tkGeom.product()),_bField.product());
     auto detbegin = myTSOS.globalPosition().z() > 0 ? _plusSurface.begin() : _minusSurface.begin();
@@ -246,3 +250,5 @@ goodPtResolution( const reco::TrackRef& trackref) const {
   return true;
 }
 
+
+DEFINE_FWK_MODULE(HGCalTrackCollectionProducer);
