@@ -127,6 +127,18 @@ runPandora::~runPandora()
    // do anything here that needs to be done at desctruction time
    // (e.g. close files, deallocate resources etc.)
 
+   delete m_calibEB;
+   delete m_calibHB;
+   delete m_calibEE;
+   delete m_calibHEF;
+   delete m_calibHEB;
+   
+   delete m_hitEperLayer_EM[subdet::EE];
+   delete m_hitEperLayer_EM[subdet::HEF];
+   delete m_hitEperLayer_EM[subdet::HEB];
+   delete m_hitEperLayer_HAD[subdet::EE];
+   delete m_hitEperLayer_HAD[subdet::HEF];
+   delete m_hitEperLayer_HAD[subdet::HEB]; 
 }
 
 
@@ -212,49 +224,46 @@ void runPandora::initPandoraCalibrParameters()
    m_secondMCpartEta = -99999.;
    m_secondMCpartPhi = -99999.;
 
+   m_calibEE->m_Calibr_ADC2GeV  = 0.000012 ; //w/o absorber thickness correction
+   m_calibHEF->m_Calibr_ADC2GeV = 0.0000176; //w/o absorber thickness correction
+   m_calibHEB->m_Calibr_ADC2GeV = 0.0003108; //w/o absorber thickness correction
 
-   m_Calibr_ADC2GeV_EE  = 0.000012 ; //w/o absorber thickness correction
-   m_Calibr_ADC2GeV_HEF = 0.0000176; //w/o absorber thickness correction
-   m_Calibr_ADC2GeV_HEB = 0.0003108; //w/o absorber thickness correction
+   m_calibEE->m_EM_addCalibr   = 10.;
+   m_calibHEF->m_EM_addCalibr  = 10.;
+   m_calibHEB->m_EM_addCalibr  = 10.;
+   m_calibEE->m_HAD_addCalibr  = 10.;
+   m_calibHEF->m_HAD_addCalibr = 10.;
+   m_calibHEB->m_HAD_addCalibr = 10.;
 
-   m_EM_addCalibrEE = 10.;
-   m_EM_addCalibrHEF= 10.;
-   m_EM_addCalibrHEB= 10.;
-   m_HAD_addCalibrEE = 10.;
-   m_HAD_addCalibrHEF= 10.;
-   m_HAD_addCalibrHEB= 10.;
+   m_calibEB->m_CalThresh  = 0.;
+   m_calibEE->m_CalThresh  = 27.55e-6; //EE
+   m_calibHEF->m_CalThresh = 42.50e-6;
+   m_calibHEB->m_CalThresh = 742.2e-6;
+   m_calibHB->m_CalThresh  = 0.;
 
+   m_calibEB->m_CalMipThresh  = 0.5;
+   m_calibEE->m_CalMipThresh  = 0.5;
+   m_calibHEF->m_CalMipThresh = 0.5;
+   m_calibHEB->m_CalMipThresh = 0.5;
+   m_calibHB->m_CalMipThresh  = 0.5;
 
-   m_eCalThresBarrel    = 0.;
-   m_eCalThresEndCap    = 27.55e-6; //EE
-   m_hCalThresEndCapHEF = 42.50e-6;
-   m_hCalThresEndCapHEB = 742.2e-6;
-   m_hCalThresBarrel    = 0.;
+   m_calibEB->m_CalToMip     = 3.3333333;
+   m_calibEE->m_CalToMip     = 18149.;
+   m_calibHEF->m_CalToMip    = 11765.;
+   m_calibHEB->m_CalToMip    = 667.4;
+   m_calibHB->m_CalToMip     = 3.3333333;
 
+   m_calibEB->m_CalToEMGeV   = 1.;
+   m_calibEE->m_CalToEMGeV   = 1.;
+   m_calibHEF->m_CalToEMGeV  = 1.;
+   m_calibHEB->m_CalToEMGeV  = 1.;
+   m_calibHB->m_CalToEMGeV   = 1.;
 
-   m_eCalMipThresBarrel    = 0.5;
-   m_eCalMipThresEndCap    = 0.5;
-   m_hCalMipThresEndCapHEF = 0.5;
-   m_hCalMipThresEndCapHEB = 0.5;
-   m_hCalMipThresBarrel    = 0.5;
-
-   m_eCalToMipBarrel       = 3.3333333;
-   m_eCalToMipEndCap       = 18149.;
-   m_hCalToMipEndCapHEF    = 11765.;
-   m_hCalToMipEndCapHEB    = 667.4;
-   m_hCalToMipBarrel       = 3.3333333;
-
-   m_eCalToEMGeVEndCap     = 1.;
-   m_eCalToEMGeVBarrel     = 1.;
-   m_hCalToEMGeVEndCapHEF  = 1.;
-   m_hCalToEMGeVEndCapHEB  = 1.;
-   m_hCalToEMGeVBarrel     = 1.;
-
-   m_eCalToHadGeVEndCap    = 1.;
-   m_eCalToHadGeVBarrel    = 1.;
-   m_hCalToHadGeVEndCapHEF = 1.;
-   m_hCalToHadGeVEndCapHEB = 1.;
-   m_hCalToHadGeVBarrel    = 1.;
+   m_calibEB->m_CalToHADGeV  = 1.;
+   m_calibEE->m_CalToHADGeV  = 1.;
+   m_calibHEF->m_CalToHADGeV = 1.;
+   m_calibHEB->m_CalToHADGeV = 1.;
+   m_calibHB->m_CalToHADGeV  = 1.;
    m_muonToMip             = 1.;
 
    return;
@@ -285,50 +294,51 @@ void runPandora::readCalibrParameterFile()
       ss >> paraName >> paraValue;
       std::cout << "reading calibr parameter " << paraName << " ";
 
-      if (paraName=="Calibr_ADC2GeV_EE"     ) {m_Calibr_ADC2GeV_EE       = paraValue; std::cout <<  m_Calibr_ADC2GeV_EE     << std::endl;}
-      if (paraName=="Calibr_ADC2GeV_HEF"    ) {m_Calibr_ADC2GeV_HEF      = paraValue; std::cout <<  m_Calibr_ADC2GeV_HEF    << std::endl;}
-      if (paraName=="Calibr_ADC2GeV_HEB"    ) {m_Calibr_ADC2GeV_HEB      = paraValue; std::cout <<  m_Calibr_ADC2GeV_HEB    << std::endl;}
+           if (paraName=="Calibr_ADC2GeV_EE"     ) {m_calibEE->m_Calibr_ADC2GeV  = paraValue;}
+      else if (paraName=="Calibr_ADC2GeV_HEF"    ) {m_calibHEF->m_Calibr_ADC2GeV = paraValue;}
+      else if (paraName=="Calibr_ADC2GeV_HEB"    ) {m_calibHEB->m_Calibr_ADC2GeV = paraValue;}
 
-      if (paraName=="EMaddCalibrEE"         ) {m_EM_addCalibrEE          = paraValue; std::cout <<  m_EM_addCalibrEE        << std::endl;}
-      if (paraName=="EMaddCalibrHEF"        ) {m_EM_addCalibrHEF         = paraValue; std::cout <<  m_EM_addCalibrHEF       << std::endl;}
-      if (paraName=="EMaddCalibrHEB"        ) {m_EM_addCalibrHEB         = paraValue; std::cout <<  m_EM_addCalibrHEB       << std::endl;}
-      if (paraName=="HADaddCalibrEE"        ) {m_HAD_addCalibrEE         = paraValue; std::cout <<  m_HAD_addCalibrEE       << std::endl;}
-      if (paraName=="HADaddCalibrHEF"       ) {m_HAD_addCalibrHEF        = paraValue; std::cout <<  m_HAD_addCalibrHEF      << std::endl;}
-      if (paraName=="HADaddCalibrHEB"       ) {m_HAD_addCalibrHEB        = paraValue; std::cout <<  m_HAD_addCalibrHEB      << std::endl;}
+      else if (paraName=="EMaddCalibrEE"         ) {m_calibEE->m_EM_addCalibr    = paraValue;}
+      else if (paraName=="EMaddCalibrHEF"        ) {m_calibHEF->m_EM_addCalibr   = paraValue;}
+      else if (paraName=="EMaddCalibrHEB"        ) {m_calibHEB->m_EM_addCalibr   = paraValue;}
+      else if (paraName=="HADaddCalibrEE"        ) {m_calibEE->m_HAD_addCalibr   = paraValue;}
+      else if (paraName=="HADaddCalibrHEF"       ) {m_calibHEF->m_HAD_addCalibr  = paraValue;}
+      else if (paraName=="HADaddCalibrHEB"       ) {m_calibHEB->m_HAD_addCalibr  = paraValue;}
+ 
+      else if (paraName=="ECalThresBarrel"       ) {m_calibEB->m_CalThresh       = paraValue;}
+      else if (paraName=="ECalThresEndCap"       ) {m_calibEE->m_CalThresh       = paraValue;}
+      else if (paraName=="HCalThresEndCapHEF"    ) {m_calibHEF->m_CalThresh      = paraValue;}
+      else if (paraName=="HCalThresEndCapHEB"    ) {m_calibHEB->m_CalThresh      = paraValue;}
+      else if (paraName=="HCalThresBarrel"       ) {m_calibHB->m_CalThresh       = paraValue;}
+ 
+      else if (paraName=="ECalMipThresEndCap"    ) {m_calibEE->m_CalMipThresh    = paraValue;}
+      else if (paraName=="ECalMipThresBarrel"    ) {m_calibEB->m_CalMipThresh    = paraValue;}
+      else if (paraName=="HCalMipThresEndCapHEF" ) {m_calibHEF->m_CalMipThresh   = paraValue;}
+      else if (paraName=="HCalMipThresEndCapHEB" ) {m_calibHEB->m_CalMipThresh   = paraValue;}
+      else if (paraName=="HCalMipThresBarrel"    ) {m_calibHB->m_CalMipThresh    = paraValue;}
 
+      else if (paraName=="ECalToMipEndCap"       ) {m_calibEE->m_CalToMip        = paraValue;}
+      else if (paraName=="ECalToMipBarrel"       ) {m_calibEB->m_CalToMip        = paraValue;}
+      else if (paraName=="HCalToMipEndCapHEF"    ) {m_calibHEF->m_CalToMip       = paraValue;}
+      else if (paraName=="HCalToMipEndCapHEB"    ) {m_calibHEB->m_CalToMip       = paraValue;}
+      else if (paraName=="HCalToMipBarrel"       ) {m_calibHB->m_CalToMip        = paraValue;}
 
-      if (paraName=="ECalThresBarrel"       ) {m_eCalThresBarrel         = paraValue; std::cout <<  m_eCalThresBarrel       << std::endl;}
-      if (paraName=="ECalThresEndCap"       ) {m_eCalThresEndCap         = paraValue; std::cout <<  m_eCalThresEndCap       << std::endl;}
-      if (paraName=="HCalThresEndCapHEF"    ) {m_hCalThresEndCapHEF      = paraValue; std::cout <<  m_hCalThresEndCapHEF    << std::endl;}
-      if (paraName=="HCalThresEndCapHEB"    ) {m_hCalThresEndCapHEB      = paraValue; std::cout <<  m_hCalThresEndCapHEB    << std::endl;}
-      if (paraName=="HCalThresBarrel"       ) {m_hCalThresBarrel         = paraValue; std::cout <<  m_hCalThresBarrel       << std::endl;}
+      else if (paraName=="ECalToEMGeVEndCap"     ) {m_calibEE->m_CalToEMGeV      = paraValue;}
+      else if (paraName=="ECalToEMGeVBarrel"     ) {m_calibEB->m_CalToEMGeV      = paraValue;}
+      else if (paraName=="HCalToEMGeVEndCapHEF"  ) {m_calibHEF->m_CalToEMGeV     = paraValue;}
+      else if (paraName=="HCalToEMGeVEndCapHEB"  ) {m_calibHEB->m_CalToEMGeV     = paraValue;}
+      else if (paraName=="HCalToEMGeVBarrel"     ) {m_calibHB->m_CalToEMGeV      = paraValue;}
 
+      else if (paraName=="ECalToHadGeVEndCap"    ) {m_calibEE->m_CalToHADGeV     = paraValue;}
+      else if (paraName=="ECalToHadGeVBarrel"    ) {m_calibEB->m_CalToHADGeV     = paraValue;}
+      else if (paraName=="HCalToHadGeVEndCapHEF" ) {m_calibHEF->m_CalToHADGeV    = paraValue;}
+      else if (paraName=="HCalToHadGeVEndCapHEB" ) {m_calibHEB->m_CalToHADGeV    = paraValue;}
+      else if (paraName=="HCalToHadGeVBarrel"    ) {m_calibHB->m_CalToHADGeV     = paraValue;}
 
-      if (paraName=="ECalMipThresEndCap"    ) {m_eCalMipThresEndCap      = paraValue; std::cout <<  m_eCalMipThresEndCap    << std::endl;}
-      if (paraName=="ECalMipThresBarrel"    ) {m_eCalMipThresBarrel      = paraValue; std::cout <<  m_eCalMipThresBarrel    << std::endl;}
-      if (paraName=="HCalMipThresEndCapHEF" ) {m_hCalMipThresEndCapHEF   = paraValue; std::cout <<  m_hCalMipThresEndCapHEF << std::endl;}
-      if (paraName=="HCalMipThresEndCapHEB" ) {m_hCalMipThresEndCapHEB   = paraValue; std::cout <<  m_hCalMipThresEndCapHEB << std::endl;}
-      if (paraName=="HCalMipThresBarrel"    ) {m_hCalMipThresBarrel      = paraValue; std::cout <<  m_hCalMipThresBarrel    << std::endl;}
-
-      if (paraName=="ECalToMipEndCap"       ) {m_eCalToMipEndCap         = paraValue; std::cout <<  m_eCalToMipEndCap       << std::endl;}
-      if (paraName=="ECalToMipBarrel"       ) {m_eCalToMipBarrel         = paraValue; std::cout <<  m_eCalToMipBarrel       << std::endl;}
-      if (paraName=="HCalToMipEndCapHEF"    ) {m_hCalToMipEndCapHEF      = paraValue; std::cout <<  m_hCalToMipEndCapHEF    << std::endl;}
-      if (paraName=="HCalToMipEndCapHEB"    ) {m_hCalToMipEndCapHEB      = paraValue; std::cout <<  m_hCalToMipEndCapHEB    << std::endl;}
-      if (paraName=="HCalToMipBarrel"       ) {m_hCalToMipBarrel         = paraValue; std::cout <<  m_hCalToMipBarrel       << std::endl;}
-
-      if (paraName=="ECalToEMGeVEndCap"     ) {m_eCalToEMGeVEndCap       = paraValue; std::cout <<  m_eCalToEMGeVEndCap     << std::endl;}
-      if (paraName=="ECalToEMGeVBarrel"     ) {m_eCalToEMGeVBarrel       = paraValue; std::cout <<  m_eCalToEMGeVBarrel     << std::endl;}
-      if (paraName=="HCalToEMGeVEndCapHEF"  ) {m_hCalToEMGeVEndCapHEF    = paraValue; std::cout <<  m_hCalToEMGeVEndCapHEF  << std::endl;}
-      if (paraName=="HCalToEMGeVEndCapHEB"  ) {m_hCalToEMGeVEndCapHEB    = paraValue; std::cout <<  m_hCalToEMGeVEndCapHEB  << std::endl;}
-      if (paraName=="HCalToEMGeVBarrel"     ) {m_hCalToEMGeVBarrel       = paraValue; std::cout <<  m_hCalToEMGeVBarrel     << std::endl;}
-
-      if (paraName=="ECalToHadGeVEndCap"    ) {m_eCalToHadGeVEndCap      = paraValue; std::cout <<  m_eCalToHadGeVEndCap    << std::endl;}
-      if (paraName=="ECalToHadGeVBarrel"    ) {m_eCalToHadGeVBarrel      = paraValue; std::cout <<  m_eCalToHadGeVBarrel    << std::endl;}
-      if (paraName=="HCalToHadGeVEndCapHEF" ) {m_hCalToHadGeVEndCapHEF   = paraValue; std::cout <<  m_hCalToHadGeVEndCapHEF << std::endl;}
-      if (paraName=="HCalToHadGeVEndCapHEB" ) {m_hCalToHadGeVEndCapHEB   = paraValue; std::cout <<  m_hCalToHadGeVEndCapHEB << std::endl;}
-      if (paraName=="HCalToHadGeVBarrel"    ) {m_hCalToHadGeVBarrel      = paraValue; std::cout <<  m_hCalToHadGeVBarrel    << std::endl;}
-
-      if (paraName=="MuonToMip"             ) {m_muonToMip               = paraValue; std::cout <<  m_muonToMip             << std::endl;}
+      else if (paraName=="MuonToMip"             ) {m_muonToMip                 = paraValue;}
+	  else continue;
+	  
+	  std::cout << paraValue << std::endl;
    }
 
    calibrParFile.close();
@@ -361,17 +371,6 @@ void runPandora::readEnergyWeight()
 
    offSet_EM  = stm->getSinglePara("offSet_EM");
    offSet_Had = stm->getSinglePara("offSet_Had");
-
-   //notneeded layerSet_EE          = stm->getArrayPara("layerSet_EE");
-   //notneeded layerSet_HEF         = stm->getArrayPara("layerSet_HEF");
-   //notneeded layerSet_HEB         = stm->getArrayPara("layerSet_HEB");
-   //notneeded energyWeight_EM_EE   = stm->getArrayPara("energyWeight_EM_EE");
-   //notneeded energyWeight_EM_HEF  = stm->getArrayPara("energyWeight_EM_HEF");
-   //notneeded energyWeight_EM_HEB  = stm->getArrayPara("energyWeight_EM_HEB");
-   //notneeded energyWeight_Had_EE  = stm->getArrayPara("energyWeight_Had_EE");
-   //notneeded energyWeight_Had_HEF = stm->getArrayPara("energyWeight_Had_HEF");
-   //notneeded energyWeight_Had_HEB = stm->getArrayPara("energyWeight_Had_HEB");
-
 
    return;
 }
@@ -890,246 +889,71 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
                   edm::Handle<HGCRecHitCollection> HGChefRecHitHandle,
                   edm::Handle<HGCRecHitCollection> HGChebRecHitHandle,
                   reco::Vertex& pv, 
-                  const edm::Event& iEvent, const edm::EventSetup& iSetup){
-
+                  const edm::Event& iEvent, const edm::EventSetup& iSetup)
+{
   PandoraApi::RectangularCaloHitParameters caloHitParameters;
 
-  double speedoflight = (CLHEP::c_light/CLHEP::cm)/CLHEP::ns;
   std::cout<< speedoflight << " cm/ns" << std::endl;
 
-  double sumCaloEnergy = 0.;
-  double sumCaloEnergyEM = 0.;
-  double sumCaloEnergyHAD = 0.;
+  sumCaloEnergy = 0.;
+  sumCaloEnergyEM = 0.;
+  sumCaloEnergyHAD = 0.;
 
-  double simDir_sumCaloEnergyEM = 0.;
-  double simDir_sumCaloEnergyHAD = 0.;
+  simDir_sumCaloEnergyEM = 0.;
+  simDir_sumCaloEnergyHAD = 0.;
 
+  sumCaloECALEnergyEM = 0.;
+  sumCaloHCALEnergyEM  = 0.;
+  sumCaloECALEnergyHAD= 0.;
+  sumCaloECALEnergyHAD_unc= 0.;
+  sumCaloHCALEnergyHAD = 0.;
 
-  double sumCaloECALEnergyEM = 0.;
-  double sumCaloHCALEnergyEM  = 0.;
-  double sumCaloECALEnergyHAD= 0.;
-  double sumCaloECALEnergyHAD_unc= 0.;
-  double sumCaloHCALEnergyHAD = 0.;
-
+  // Get the ecal/hcal barrel geometry
+  edm::ESHandle<CaloGeometry> geoHandle;
+  iSetup.get<CaloGeometryRecord>().get(geoHandle);
+  const CaloSubdetectorGeometry *ebtmp = geoHandle->getSubdetectorGeometry(DetId::Ecal, EcalBarrel);
+  const CaloSubdetectorGeometry *hbtmp = geoHandle->getSubdetectorGeometry(DetId::Hcal, HcalBarrel);
+  const EcalBarrelGeometry* ecalBarrelGeometry = dynamic_cast< const EcalBarrelGeometry* > (ebtmp);
+  const HcalGeometry* hcalBarrelGeometry = dynamic_cast< const HcalGeometry* > (hbtmp);
+  assert( ecalBarrelGeometry );
+  assert( hcalBarrelGeometry );
+  
+  // Get the HGC geometry
+  edm::ESHandle<HGCalGeometry> hgceeGeoHandle ; 
+  edm::ESHandle<HGCalGeometry> hgchefGeoHandle ; 
+  edm::ESHandle<HGCalGeometry> hgchebGeoHandle ; 
+  iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",hgceeGeoHandle) ; 
+  iSetup.get<IdealGeometryRecord>().get("HGCalHESiliconSensitive",hgchefGeoHandle) ; 
+  iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",hgchebGeoHandle) ; 
+  const HGCalGeometry &hgceetmp = *hgceeGeoHandle ; 
+  const HGCalGeometry &hgcheftmp = *hgchefGeoHandle ; 
+  const HGCalGeometry &hgchebtmp = *hgchebGeoHandle ; 
+  const HGCalGeometry &HGCEEGeometry  = dynamic_cast< const HGCalGeometry& > (hgceetmp);
+  const HGCalGeometry &HGCHEFGeometry = dynamic_cast< const HGCalGeometry& > (hgcheftmp);
+  const HGCalGeometry &HGCHEBGeometry = dynamic_cast< const HGCalGeometry& > (hgchebtmp);
+  assert( &HGCEEGeometry );
+  assert( &HGCHEFGeometry );
+  assert( &HGCHEBGeometry );  
+  
   // 
   // Process ECAL barrel rechits 
   // 
+  int nNotFoundEB = 0, nCaloHitsEB = 0;
   for(unsigned i=0; i<ecalRecHitHandleEB->size(); i++) {
-    continue;      
-    const EcalRecHit * erh = &(*ecalRecHitHandleEB)[i];
-    const DetId& detid = erh->detid();
-    double energy = erh->energy();
-
-    if (energy < m_eCalThresBarrel) continue;
-
-    double time = erh->time();
-    // std::cout << "energy " << energy <<  " time " << time <<std::endl;
-    EcalSubdetector esd=(EcalSubdetector)detid.subdetId();
-    if (esd != 1) continue;
-      
-    edm::ESHandle<CaloGeometry> geoHandle;
-    iSetup.get<CaloGeometryRecord>().get(geoHandle);
-  
-    // get the ecalBarrel geometry
-    const CaloSubdetectorGeometry *ebtmp = geoHandle->getSubdetectorGeometry(DetId::Ecal, EcalBarrel);
-  
-    const EcalBarrelGeometry* ecalBarrelGeometry = dynamic_cast< const EcalBarrelGeometry* > (ebtmp);
-    assert( ecalBarrelGeometry );
-
-    // get the ecalBarrel topology
-    EcalBarrelTopology ecalBarrelTopology(geoHandle);
-
-    const CaloSubdetectorGeometry* geom = ecalBarrelGeometry;
-    
-    const CaloCellGeometry *thisCell = geom->getGeometry(detid);
-  
-    // find rechit geometry
-    if(!thisCell) {
-      LogError("runPandoraECAL") << "warning detid "<<detid.rawId() <<" not found in geometry"<<std::endl;
-      continue;
-    }
-        
-    const CaloCellGeometry::CornersVec& corners = thisCell->getCorners();
-    assert( corners.size() == 8 );
-    const pandora::CartesianVector NECorner( corners[0].x(), corners[0].y(), corners[0].z() );
-    const pandora::CartesianVector SECorner( corners[1].x(), corners[1].y(), corners[1].z() );
-
-    // Various thickness measurements: 
-    // m_cellSizeU --> Should be along beam for barrel, so along z...take as 0 <--> 1
-    // m_cellSizeV --> Perpendicular to U and to thickness, but what is thickness?...take as 0 <--> 3
-    // m_cellThickness --> Equivalent to depth?...take as 0 <--> 4
-    const pandora::CartesianVector corner0( corners[0].x(), corners[0].y(), corners[0].z() );
-    const pandora::CartesianVector corner1( corners[1].x(), corners[1].y(), corners[1].z() );
-    const pandora::CartesianVector corner3( corners[3].x(), corners[3].y(), corners[3].z() );
-    const pandora::CartesianVector corner4( corners[4].x(), corners[4].y(), corners[4].z() );
-    caloHitParameters.m_cellSizeU     = 10.0 * (corner0 - corner1).GetMagnitude() ; 
-    caloHitParameters.m_cellSizeV     = 10.0 * (corner0 - corner3).GetMagnitude() ; 
-    caloHitParameters.m_cellThickness = 10.0 * (corner0 - corner4).GetMagnitude() ; 
-    
- //   for (unsigned int i=0; i<8; i++) { 
- //     std::cout << "Corners " << i << ": x " << corners[i].x() << " y " << corners[i].y() << " z " << corners[i].z() << std::endl ; 
- //   }
-    // Position is average of all eight corners, convert from cm to mm
-    double x = 0.0, y = 0.0, z = 0.0 ; 
-    double xf = 0.0, yf = 0.0, zf = 0.0 ; 
-    double xb = 0.0, yb = 0.0, zb = 0.0 ; 
-    for (unsigned int i=0; i<8; i++) {
-      if ( i < 4 ) { xf += corners[i].x() ; yf += corners[i].y() ; zf += corners[i].z() ; }
-      else { xb += corners[i].x() ; yb += corners[i].y() ; zb += corners[i].z() ; }
-      x += corners[i].x() ; y += corners[i].y() ; z += corners[i].z() ; 
-    }
-    // Average x,y,z position 
-    x = x / 8.0 ; y = y / 8.0 ; z = z / 8.0 ; 
-    xf = xf / 8.0 ; yf = yf / 8.0 ; zf = zf / 8.0 ; 
-    xb = xb / 8.0 ; yb = yb / 8.0 ; zb = zb / 8.0 ; 
-    const pandora::CartesianVector positionVector(10.0*x,10.0*y,10.0*z);
-    caloHitParameters.m_positionVector = positionVector;
-
-    // Expected direction (currently) drawn from primary vertex to front face of calorimeter cell
-    const pandora::CartesianVector axisVector(10.0*(xf-pv.x()),10.0*(yf-pv.y()),10.0*(zf-pv.z())) ; 
-    caloHitParameters.m_expectedDirection = axisVector.GetUnitVector();
-    
-    // Cell normal vector runs from front face to back of cell
-    const pandora::CartesianVector normalVector(10.0*(xb-xf),10.0*(yb-yf),10.0*(zb-zf)) ; 
-    caloHitParameters.m_cellNormalVector = normalVector.GetUnitVector();
-
-    double distToFrontFace = sqrt( xf*xf + yf*yf + zf*zf ) ;
-    // dist = cm, c = cm/nsec, rechit t in psec
-    caloHitParameters.m_time = (distToFrontFace / speedoflight) + (time/1000.0) ; 
-
-    caloHitParameters.m_hitType = pandora::ECAL;
-    caloHitParameters.m_hitRegion = pandora::BARREL;
-    caloHitParameters.m_inputEnergy = energy;
-    caloHitParameters.m_electromagneticEnergy = m_eCalToEMGeVBarrel * energy; 
-    caloHitParameters.m_mipEquivalentEnergy = m_eCalToMipBarrel * energy; // = energy; // HTAN 0 NS AP
-
-
-    if (caloHitParameters.m_mipEquivalentEnergy.Get() < m_eCalMipThresBarrel) {
-       //std::cout << "EcalBarrel MIP threshold rejected" << std::endl;
-       continue;
-    }
-
-    sumCaloEnergy += energy;
-    sumCaloEnergyEM += energy  ;//FIXME * absorberCorrectionEM;
-    sumCaloEnergyHAD += energy ;//FIXME * absorberCorrectionHAD;
-    sumCaloECALEnergyEM  += energy  ;//* absorberCorrectionEM;
-    sumCaloECALEnergyHAD += energy  ;//* absorberCorrectionHAD;
- 
-    caloHitParameters.m_hadronicEnergy = m_eCalToHadGeVBarrel * energy; // = energy; 
-    caloHitParameters.m_layer = 1.;//PFLayer::ECAL_BARREL;
-    caloHitParameters.m_nCellRadiationLengths = 0.0; // 6.;
-    caloHitParameters.m_nCellInteractionLengths = 0.0; // 6.;
-    caloHitParameters.m_isDigital = false;
-    caloHitParameters.m_isInOuterSamplingLayer = false;
-    caloHitParameters.m_pParentAddress = (void *) erh;
-
-    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*m_pPandora, caloHitParameters)); 
+    continue;
+	ProcessRecHit(&(*ecalRecHitHandleEB)[i], 1, *ecalBarrelGeometry, m_calibEB, nCaloHitsEB, nNotFoundEB, pv,
+	              pandora::ECAL, pandora::BARREL, caloHitParameters);
     
   }    
 
   //
   // process HCAL Barrel Hits
   //
+  int nNotFoundHB = 0, nCaloHitsHB = 0;
   for(unsigned i=0; i<hcalRecHitHandleHBHE->size(); i++) {
-        continue;       
-    const HBHERecHit * hrh = &(*hcalRecHitHandleHBHE)[i];
-    const DetId& detid = hrh->detid();
-    double energy = hrh->energy();
-    if (energy < m_hCalThresBarrel) continue;
-    double time = hrh->time();
-
-    HcalSubdetector hsd=(HcalSubdetector)detid.subdetId();
-    if (hsd != 1) continue; // HCAL BARREL ONLY
-
-    edm::ESHandle<CaloGeometry> geoHandle;
-    iSetup.get<CaloGeometryRecord>().get(geoHandle);
-  
-    // get the hcal geometry
-    const CaloSubdetectorGeometry *hbtmp = geoHandle->getSubdetectorGeometry(DetId::Hcal, HcalBarrel);
-    const HcalGeometry* hcalBarrelGeometry = dynamic_cast< const HcalGeometry* > (hbtmp);
-    assert( hcalBarrelGeometry );
-
-    const CaloSubdetectorGeometry* hbgeom = hcalBarrelGeometry;
-    const CaloCellGeometry *thisCell = hbgeom->getGeometry(detid) ;
-  
-    // find rechit geometry
-    if(!thisCell) {
-      LogError("runPandoraHCAL") << "warning detid "<<detid.rawId() <<" not found in geometry"<<std::endl;
-      continue;
-    }
-        
-    const CaloCellGeometry::CornersVec& corners = thisCell->getCorners();
-    assert( corners.size() == 8 );
-    const pandora::CartesianVector NECorner( corners[0].x(), corners[0].y(), corners[0].z() );
-    const pandora::CartesianVector SECorner( corners[1].x(), corners[1].y(), corners[1].z() );
-
-    // Various thickness measurements: 
-    // m_cellSizeU --> Should be along beam for barrel, so along z...take as 0 <--> 1
-    // m_cellSizeV --> Perpendicular to U and to thickness, but what is thickness?...take as 0 <--> 3
-    // m_cellThickness --> Equivalent to depth?...take as 0 <--> 4
-    const pandora::CartesianVector corner0( corners[0].x(), corners[0].y(), corners[0].z() );
-    const pandora::CartesianVector corner1( corners[1].x(), corners[1].y(), corners[1].z() );
-    const pandora::CartesianVector corner3( corners[3].x(), corners[3].y(), corners[3].z() );
-    const pandora::CartesianVector corner4( corners[4].x(), corners[4].y(), corners[4].z() );
-    caloHitParameters.m_cellSizeU     = 10.0 * (corner0 - corner1).GetMagnitude() ; 
-    caloHitParameters.m_cellSizeV     = 10.0 * (corner0 - corner3).GetMagnitude() ; 
-    caloHitParameters.m_cellThickness = 10.0 * (corner0 - corner4).GetMagnitude() ; 
-    
-    // Position is average of all eight corners, convert from cm to mm
-    double x = 0.0, y = 0.0, z = 0.0 ; 
-    double xf = 0.0, yf = 0.0, zf = 0.0 ; 
-    double xb = 0.0, yb = 0.0, zb = 0.0 ; 
-    for (unsigned int i=0; i<8; i++) {
-      if ( i < 4 ) { xf += corners[i].x() ; yf += corners[i].y() ; zf += corners[i].z() ; }
-      else { xb += corners[i].x() ; yb += corners[i].y() ; zb += corners[i].z() ; }
-      x += corners[i].x() ; y += corners[i].y() ; z += corners[i].z() ; 
-    }
-    // Average x,y,z position 
-    x = x / 8.0 ; y = y / 8.0 ; z = z / 8.0 ; 
-    xf = xf / 8.0 ; yf = yf / 8.0 ; zf = zf / 8.0 ; 
-    xb = xb / 8.0 ; yb = yb / 8.0 ; zb = zb / 8.0 ; 
-    const pandora::CartesianVector positionVector(10.0*x,10.0*y,10.0*z);
-    caloHitParameters.m_positionVector = positionVector;
-
-    // Expected direction (currently) drawn from primary vertex to front face of calorimeter cell
-    const pandora::CartesianVector axisVector(10.0*(xf-pv.x()),10.0*(yf-pv.y()),10.0*(zf-pv.z())) ; 
-    caloHitParameters.m_expectedDirection = axisVector.GetUnitVector();
-    
-    // Cell normal vector runs from front face to back of cell
-    const pandora::CartesianVector normalVector(10.0*(xb-xf),10.0*(yb-yf),10.0*(zb-zf)) ; 
-    caloHitParameters.m_cellNormalVector = normalVector.GetUnitVector();
-
-    double distToFrontFace = sqrt( xf*xf + yf*yf + zf*zf ) ;
-    // dist = cm, c = cm/nsec, rechit t in psec
-    caloHitParameters.m_time = (distToFrontFace / speedoflight) + (time/1000.0) ; 
-
-    caloHitParameters.m_hitType = pandora::HCAL;
-    caloHitParameters.m_hitRegion = pandora::BARREL ;
-    caloHitParameters.m_inputEnergy = energy;
-    caloHitParameters.m_electromagneticEnergy = m_hCalToEMGeVBarrel * energy; 
-    caloHitParameters.m_mipEquivalentEnergy =  m_hCalToMipBarrel * energy; // = energy; // HTAN 0 NS AP  
-
-    if (caloHitParameters.m_mipEquivalentEnergy.Get() < m_hCalMipThresBarrel) {
-       //std::cout << "HcalBarrel MIP threshold rejected" << std::endl;
-       continue;
-    }
-    sumCaloEnergy += energy;
-    sumCaloEnergyEM  += energy;// * absorberCorrectionEM ;
-    sumCaloEnergyHAD += energy;// * absorberCorrectionHAD;
-    sumCaloHCALEnergyEM  += energy  ;//* absorberCorrectionEM;
-    sumCaloHCALEnergyHAD += energy  ;//* absorberCorrectionHAD;
-
-
-    caloHitParameters.m_hadronicEnergy = m_hCalToHadGeVBarrel * energy; // = energy; 
-
-    caloHitParameters.m_layer = 1.;
-    caloHitParameters.m_nCellRadiationLengths = 0.0; // 6.;
-    caloHitParameters.m_nCellInteractionLengths = 0.0; // 6.;
-    caloHitParameters.m_isDigital = false;
-    caloHitParameters.m_isInOuterSamplingLayer = false;
-    caloHitParameters.m_pParentAddress = (void *) hrh;
-
-    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*m_pPandora, caloHitParameters));
+    continue;       
+    ProcessRecHit(&(*hcalRecHitHandleHBHE)[i], 1, *hcalBarrelGeometry, m_calibHB, nCaloHitsHB, nNotFoundHB, pv,
+	              pandora::HCAL, pandora::BARREL, caloHitParameters);
   }
 
   //
@@ -1138,201 +962,8 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
 
   int nNotFoundEE = 0, nCaloHitsEE = 0 ; 
   for(unsigned i=0; i<HGCeeRecHitHandle->size(); i++) {
-      
-    const HGCRecHit *eerh = &(*HGCeeRecHitHandle)[i];
-    const HGCEEDetId& detid = eerh->id();
-    //double energy = eerh->energy();
-    double energy = eerh->energy() * m_Calibr_ADC2GeV_EE;
-    if (energy<m_eCalThresEndCap) continue;
-    //energy *= m_EM_addCalibrEE; //this must be after threshold rejection
-    double time = eerh->time();
-
-    double nCellInteractionLengths = 0.;
-    double nCellRadiationLengths = 0.;
-    double absorberCorrectionEM = 1.;
-    double absorberCorrectionHAD = 1.;
-    getLayerPropertiesEE(eerh, detid.layer(),
-          nCellInteractionLengths, nCellRadiationLengths,
-          absorberCorrectionEM, absorberCorrectionHAD);
-
-
-     //std::cout << "HGC EE rechit cell " << detid.cell() << ", sector " << detid.sector() 
-     //          << ", subsector " << detid.subsector() << ", layer " << detid.layer() << ", z " << detid.zside() 
-     //          << " energy " << energy <<  " and time " << time << std::endl;
-
-    ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
-    if (thesubdet != 3) continue; // HGC EE
-      
-    math::XYZVector axis;
-
-    edm::ESHandle<HGCalGeometry> hgceeGeoHandle ; 
-    iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",hgceeGeoHandle) ; 
-    const HGCalGeometry &hgceetmp = *hgceeGeoHandle ; 
-
-    const HGCalGeometry &hgceeGeometry = dynamic_cast< const HGCalGeometry& > (hgceetmp);
-    assert( &hgceeGeometry );
-
-    // Get the HGC topology
-    // edm::ESHandle<HGCalTopology> hgceeTopoHandle ; 
-    // iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",hgceeTopoHandle) ; 
-    // const HGCalTopology &hgceeTopology = *hgceeTopoHandle ; 
-    
-    // const HGCalGeometry geom = hgceeGeometry;
-    const FlatTrd *thisCell = static_cast<const FlatTrd*>(hgceeGeometry.getGeometry(detid));    
-    // const CaloCellGeometry *thisCell = hgceeGeometry.getGeometry(detid);
-  
-    // find rechit geometry
-    if(!thisCell) {
-      LogError("runPandoraHGCEE") << "warning detid "<<detid.rawId() <<" not found in geometry"<<std::endl;
-      nNotFoundEE++ ; 
-      continue;
-    }
-        
-    const HGCalGeometry::CornersVec corners = ( std::move( hgceeGeometry.getCorners( detid ) ) );
-    assert( corners.size() == 8 );
-    const pandora::CartesianVector NECorner( corners[0].x(), corners[0].y(), corners[0].z() );
-    const pandora::CartesianVector SECorner( corners[1].x(), corners[1].y(), corners[1].z() );
-
-    // Various thickness measurements: 
-    // m_cellSizeU --> Should be along beam for barrel, so along z...take as 0 <--> 1
-    // m_cellSizeV --> Perpendicular to U and to thickness, but what is thickness?...take as 0 <--> 3
-    // m_cellThickness --> Equivalent to depth?...take as 0 <--> 4
-    const pandora::CartesianVector corner0( corners[0].x(), corners[0].y(), corners[0].z() );
-    const pandora::CartesianVector corner1( corners[1].x(), corners[1].y(), corners[1].z() );
-    const pandora::CartesianVector corner3( corners[3].x(), corners[3].y(), corners[3].z() );
-    const pandora::CartesianVector corner4( corners[4].x(), corners[4].y(), corners[4].z() );
-    caloHitParameters.m_cellSizeU     = 10.0 * (corner0 - corner1).GetMagnitude() ; 
-    caloHitParameters.m_cellSizeV     = 10.0 * (corner0 - corner3).GetMagnitude() ; 
-    //Hieu
-    //caloHitParameters.m_cellSizeV     = 10.0 * (corner0 - corner1).GetMagnitude() ; 
-    //caloHitParameters.m_cellSizeU     = 10.0 * (corner0 - corner3).GetMagnitude() ; 
-    caloHitParameters.m_cellThickness = 10.0 * (corner0 - corner4).GetMagnitude() ; 
-    
-    // Position is average of all eight corners, convert from cm to mm
-    double x = 0.0, y = 0.0, z = 0.0 ; 
-    double xf = 0.0, yf = 0.0, zf = 0.0 ; 
-    double xb = 0.0, yb = 0.0, zb = 0.0 ; 
-    for (unsigned int i=0; i<8; i++) {
-      if ( i < 4 ) { xf += corners[i].x() ; yf += corners[i].y() ; zf += corners[i].z() ; }
-      else { xb += corners[i].x() ; yb += corners[i].y() ; zb += corners[i].z() ; }
-      x += corners[i].x() ; y += corners[i].y() ; z += corners[i].z() ; 
-    }
-    // Average x,y,z position 
-    x = x / 8.0 ; y = y / 8.0 ; z = z / 8.0 ; 
-    xf = xf / 8.0 ; yf = yf / 8.0 ; zf = zf / 8.0 ; 
-    xb = xb / 8.0 ; yb = yb / 8.0 ; zb = zb / 8.0 ; 
-    const pandora::CartesianVector positionVector(10.0*x,10.0*y,10.0*z);
-    caloHitParameters.m_positionVector = positionVector;
-
-    // Expected direction (currently) drawn from primary vertex to front face of calorimeter cell
-    const pandora::CartesianVector axisVector(10.0*(xf-pv.x()),10.0*(yf-pv.y()),10.0*(zf-pv.z())) ; 
-    caloHitParameters.m_expectedDirection = axisVector.GetUnitVector();
-    
-    // Cell normal vector runs from front face to back of cell
-    const pandora::CartesianVector normalVector(10.0*(xb-xf),10.0*(yb-yf),10.0*(zb-zf)) ; 
-    caloHitParameters.m_cellNormalVector = normalVector.GetUnitVector();
-
-    double distToFrontFace = sqrt( xf*xf + yf*yf + zf*zf ) ;
-    caloHitParameters.m_time = (distToFrontFace / speedoflight) + (time/1000.0) ; // dist = cm, c = cm/nsec, rechit t in psec
-    
-    caloHitParameters.m_hitType = pandora::ECAL;
-    caloHitParameters.m_hitRegion = pandora::ENDCAP;
-    caloHitParameters.m_inputEnergy = energy;
-    if (m_energyCorrMethod == "ABSCORR")
-       caloHitParameters.m_electromagneticEnergy = m_eCalToEMGeVEndCap * energy * absorberCorrectionEM * m_EM_addCalibrEE; 
-    else if (m_energyCorrMethod == "WEIGHTING") {
-       //std::cout << "ENERGY CORR: WEIGHTING" << std::endl;
-       //int x_layer = caloHitParameters.m_layer.Get()+1;
-
-       //std::cout << "11111111111111111111111111111111" << std::endl;
-       //double erjcorr =  getEnergyWeight(D_HGCEE, x_layer, EM);
-       //std::cout << "22222222222222222222222222222222" << std::endl;
-       //caloHitParameters.m_electromagneticEnergy = m_eCalToEMGeVEndCap * energy * erjcorr; 
-       caloHitParameters.m_electromagneticEnergy = m_eCalToEMGeVEndCap * energy * getEnergyWeight(D_HGCEE, detid.layer(), EM) * m_eCalToMipEndCap; 
-    }
-    caloHitParameters.m_mipEquivalentEnergy =   m_eCalToMipEndCap   * energy; // = energy; // HTAN 0 NS AP  
-    
-    double angleCorrectionMIP(1.); 
-    double hitR = distToFrontFace; 
-    double hitZ = zf;
-    angleCorrectionMIP = hitR/hitZ; 
-
-    //---choose hits with eta-phi close to init. mc particle
-    TVector3 hit3v(xf,yf,zf);
-    double hitEta = hit3v.PseudoRapidity();
-    double hitPhi = hit3v.Phi();
-    h_hit_Eta -> Fill(hitEta);
-    h_hit_Phi -> Fill(hitPhi);
-    //std::cout << "TEST: m_firstMCpartEta = " << m_firstMCpartEta
-    //   << ", hitEta = " << hitEta << std::endl;
-    if (std::fabs(hitEta-m_firstMCpartEta) < 0.05
-          && std::fabs(hitPhi-m_firstMCpartPhi) < 0.05) {
-       h_MIP_EE -> Fill(caloHitParameters.m_mipEquivalentEnergy.Get());
-       h_MIP_Corr_EE -> Fill(caloHitParameters.m_mipEquivalentEnergy.Get()*angleCorrectionMIP);
-    }
-    if (caloHitParameters.m_mipEquivalentEnergy.Get() < m_eCalMipThresEndCap) {
-       //std::cout << "EE MIP threshold rejected" << std::endl;
-       continue;
-    }
-    sumCaloEnergy    += energy;
-    sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrEE;
-    sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrEE;
-//    if ( ( std::fabs(hitEta-m_firstMCpartEta) < 0.5
-//             || std::fabs(hitEta+m_firstMCpartEta) < 0.5 )
-//          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.5) 
-    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.2
-          && std::fabs(hitPhi-m_firstMCpartPhi) < 0.2)
-          ||
-          (std::fabs(hitEta-m_secondMCpartEta) < 0.2
-           && std::fabs(hitPhi-m_secondMCpartPhi) < 0.2)
-       )
-    {
-       simDir_sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrEE;
-       simDir_sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrEE;
-    }
-
-    sumCaloECALEnergyEM  += energy  * absorberCorrectionEM * m_EM_addCalibrEE;
-    sumCaloECALEnergyHAD += energy  * absorberCorrectionHAD * m_HAD_addCalibrEE;
-    sumCaloECALEnergyHAD_unc += energy ;
-
-
-    if (m_energyCorrMethod == "ABSCORR")
-    caloHitParameters.m_hadronicEnergy = m_eCalToHadGeVEndCap * energy * absorberCorrectionHAD * m_HAD_addCalibrEE;
-    else if (m_energyCorrMethod == "WEIGHTING")
-       caloHitParameters.m_hadronicEnergy = m_eCalToHadGeVEndCap * energy * getEnergyWeight(D_HGCEE, detid.layer(), HAD) * m_eCalToMipEndCap; 
-
-    caloHitParameters.m_layer = detid.layer() ;//PFLayer::ECAL_BARREL;
-    caloHitParameters.m_nCellRadiationLengths = nCellRadiationLengths; // 6.;
-    caloHitParameters.m_nCellInteractionLengths = nCellInteractionLengths; // 6.;
-    caloHitParameters.m_isDigital = false;
-    caloHitParameters.m_isInOuterSamplingLayer = false;
-    caloHitParameters.m_pParentAddress = (void *) eerh;
-
-    //std::cout << "TEST input caloHitParameters: "
-    //   << ", hadronicEnergy = " << caloHitParameters.m_hadronicEnergy.Get()
-    //   << ", hitType = " << caloHitParameters.m_hitType.Get()
-    //   << ", m_hitRegion = " << caloHitParameters.m_hitRegion.Get()
-    //   << std::endl;
-
-    // std::cout << "Parameters for input: " << std::endl ; 
-    // std::cout << "position vector X,Y,Z: " << caloHitParameters.m_positionVector.GetX() << " " 
-    //           << caloHitParameters.m_positionVector.GetY() << " " << caloHitParameters.m_positionVector.GetZ() << std::endl ; 
-    // std::cout << "expected direction X,Y,Z: " << caloHitParameters.m_expectedDirection.GetX() << " " 
-    //           << caloHitParameters.m_expectedDirection.GetY() << " " << caloHitParameters.m_expectedDirection.GetZ() << std::endl ; 
-    
-
-    // std::cout << "Processing HGC EE rec hit with position (in cm) " << x << " " << y << " " << z << std::endl ; 
-
-    m_hitEperLayer_EM [caloHitParameters.m_layer.Get()] += caloHitParameters.m_electromagneticEnergy.Get();
-    m_hitEperLayer_HAD[caloHitParameters.m_layer.Get()] += caloHitParameters.m_hadronicEnergy.Get();
-    //std::cout << "HEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE" << std::endl;
-    //std::cout << "EM ENERGY: " << caloHitParameters.m_electromagneticEnergy.Get()
-    //   << std::endl;
-    
-    m_hitEperLayer_EM_EE [caloHitParameters.m_layer.Get()] += caloHitParameters.m_electromagneticEnergy.Get();
-    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*m_pPandora, caloHitParameters)); 
-    nCaloHitsEE++ ; 
-     //std::cout << "BMD: This calo hit has been created" << std::endl ;   
+    ProcessRecHit(&(*HGCeeRecHitHandle)[i], 3, HGCEEGeometry, m_calibEE, nCaloHitsEE, nNotFoundEE, pv,
+	              pandora::ECAL, pandora::ENDCAP, caloHitParameters);
   }
 
 
@@ -1341,175 +972,8 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   // 
   int nNotFoundHEF = 0, nCaloHitsHEF = 0 ; 
   for(unsigned i=0; i<HGChefRecHitHandle->size(); i++) {
-      
-    const HGCRecHit *hefrh = &(*HGChefRecHitHandle)[i];
-    const HGCHEDetId& detid = hefrh->id();
-    double energy = hefrh->energy() * m_Calibr_ADC2GeV_HEF;
-    if (energy<m_hCalThresEndCapHEF)
-       continue;
-    //energy *= m_addCalibrHEF;
-    double time = hefrh->time();
-
-    double nCellInteractionLengths = 0.;
-    double nCellRadiationLengths = 0.;
-    double absorberCorrectionEM = 1.;
-    double absorberCorrectionHAD = 1.;
-    getLayerPropertiesHEF(hefrh, detid.layer(),
-      nCellInteractionLengths, nCellRadiationLengths,
-      absorberCorrectionEM, absorberCorrectionHAD);
-
-
-    // std::cout << "HGC HEF rechit cell " << detid.cell() << ", sector " << detid.sector() 
-    //           << ", subsector " << detid.subsector() << ", layer " << detid.layer() << ", z " << detid.zside() 
-    //           << " energy " << energy <<  " and time " << time << std::endl;
-
-    ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
-    if (thesubdet != 4) continue; // HGC HEF
-      
-    math::XYZVector axis;
-
-    edm::ESHandle<HGCalGeometry> hgchefGeoHandle ; 
-    iSetup.get<IdealGeometryRecord>().get("HGCalHESiliconSensitive",hgchefGeoHandle) ; 
-    const HGCalGeometry &hgcheftmp = *hgchefGeoHandle ; 
-
-    const HGCalGeometry &hgchefGeometry = dynamic_cast< const HGCalGeometry& > (hgcheftmp);
-    assert( &hgchefGeometry );
-
-    // Get the HGC topology
-    // edm::ESHandle<HGCalTopology> hgceeTopoHandle ; 
-    // iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",hgceeTopoHandle) ; 
-    // const HGCalTopology &hgceeTopology = *hgceeTopoHandle ; 
-    
-    // const HGCalGeometry geom = hgceeGeometry;
-    const FlatTrd *thisCell = static_cast<const FlatTrd*>(hgchefGeometry.getGeometry(detid));    
-  
-    // find rechit geometry
-    if(!thisCell) {
-      LogError("runPandoraHGCHEF") << "warning detid "<<detid.rawId() <<" not found in geometry"<<std::endl;
-      nNotFoundHEF++ ; 
-      continue;
-    }
-        
-    const HGCalGeometry::CornersVec corners = ( std::move( hgchefGeometry.getCorners( detid ) ) );
-    assert( corners.size() == 8 );
-    const pandora::CartesianVector NECorner( corners[0].x(), corners[0].y(), corners[0].z() );
-    const pandora::CartesianVector SECorner( corners[1].x(), corners[1].y(), corners[1].z() );
-
-    // Various thickness measurements: 
-    // m_cellSizeU --> Should be along beam for barrel, so along z...take as 0 <--> 1
-    // m_cellSizeV --> Perpendicular to U and to thickness, but what is thickness?...take as 0 <--> 3
-    // m_cellThickness --> Equivalent to depth?...take as 0 <--> 4
-    const pandora::CartesianVector corner0( corners[0].x(), corners[0].y(), corners[0].z() );
-    const pandora::CartesianVector corner1( corners[1].x(), corners[1].y(), corners[1].z() );
-    const pandora::CartesianVector corner3( corners[3].x(), corners[3].y(), corners[3].z() );
-    const pandora::CartesianVector corner4( corners[4].x(), corners[4].y(), corners[4].z() );
-    caloHitParameters.m_cellSizeU     = 10.0 * (corner0 - corner1).GetMagnitude() ; 
-    caloHitParameters.m_cellSizeV     = 10.0 * (corner0 - corner3).GetMagnitude() ; 
-    caloHitParameters.m_cellThickness = 10.0 * (corner0 - corner4).GetMagnitude() ; 
-    
-    // Position is average of all eight corners, convert from cm to mm
-    double x = 0.0, y = 0.0, z = 0.0 ; 
-    double xf = 0.0, yf = 0.0, zf = 0.0 ; 
-    double xb = 0.0, yb = 0.0, zb = 0.0 ; 
-    for (unsigned int i=0; i<8; i++) {
-      if ( i < 4 ) { xf += corners[i].x() ; yf += corners[i].y() ; zf += corners[i].z() ; }
-      else { xb += corners[i].x() ; yb += corners[i].y() ; zb += corners[i].z() ; }
-      x += corners[i].x() ; y += corners[i].y() ; z += corners[i].z() ; 
-    }
-    // Average x,y,z position 
-    x = x / 8.0 ; y = y / 8.0 ; z = z / 8.0 ; 
-    xf = xf / 8.0 ; yf = yf / 8.0 ; zf = zf / 8.0 ; 
-    xb = xb / 8.0 ; yb = yb / 8.0 ; zb = zb / 8.0 ; 
-    const pandora::CartesianVector positionVector(10.0*x,10.0*y,10.0*z);
-    caloHitParameters.m_positionVector = positionVector;
-
-    // Expected direction (currently) drawn from primary vertex to front face of calorimeter cell
-    const pandora::CartesianVector axisVector(10.0*(xf-pv.x()),10.0*(yf-pv.y()),10.0*(zf-pv.z())) ; 
-    caloHitParameters.m_expectedDirection = axisVector.GetUnitVector();
-    
-    // Cell normal vector runs from front face to back of cell
-    const pandora::CartesianVector normalVector(10.0*(xb-xf),10.0*(yb-yf),10.0*(zb-zf)) ; 
-    caloHitParameters.m_cellNormalVector = normalVector.GetUnitVector();
-
-    double distToFrontFace = sqrt( xf*xf + yf*yf + zf*zf ) ;
-    caloHitParameters.m_time = (distToFrontFace / speedoflight) + (time/1000.0) ; // dist = cm, c = cm/nsec, rechit t in psec
-    
-    caloHitParameters.m_hitType = pandora::HCAL;
-    caloHitParameters.m_hitRegion = pandora::ENDCAP;
-    caloHitParameters.m_inputEnergy = energy;
-    if (m_energyCorrMethod == "ABSCORR")
-       caloHitParameters.m_electromagneticEnergy = m_hCalToEMGeVEndCapHEF * energy * m_EM_addCalibrHEF; 
-    else if (m_energyCorrMethod == "WEIGHTING")
-       caloHitParameters.m_electromagneticEnergy = m_hCalToEMGeVEndCapHEF * energy * getEnergyWeight(D_HGCHEF, detid.layer(), EM); 
-
-    caloHitParameters.m_mipEquivalentEnergy =  m_hCalToMipEndCapHEF * energy; // = energy; // HTAN 0 NS AP  
-
-    //---choose hits with eta-phi close to init. mc particle
-    TVector3 hit3v(xf,yf,zf);
-    double hitEta = hit3v.PseudoRapidity();
-    double hitPhi = hit3v.Phi();
-    if (std::fabs(hitEta-m_firstMCpartEta) < 0.05
-          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.05) {
-
-       h_MIP_HEF->Fill(caloHitParameters.m_mipEquivalentEnergy.Get());
-       double angleCorrectionMIP(1.);
-       double hitR = distToFrontFace; 
-       double hitZ = zf;
-       angleCorrectionMIP = hitR/hitZ;
-       h_MIP_Corr_HEF->Fill(caloHitParameters.m_mipEquivalentEnergy.Get()*angleCorrectionMIP);
-    }
-
-    if (caloHitParameters.m_mipEquivalentEnergy.Get() < m_hCalMipThresEndCapHEF) {
-       //std::cout << "HEF MIP threshold rejected" << std::endl;
-       continue;
-    }
-    sumCaloEnergy += energy;
-    sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrHEF;
-    sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrHEF;
-//    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.5
-//             || std::fabs(hitEta+m_firstMCpartEta) < 0.5 )
-//          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.5) 
-    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.2
-          && std::fabs(hitPhi-m_firstMCpartPhi) < 0.2)
-          ||
-          (std::fabs(hitEta-m_secondMCpartEta) < 0.2
-           && std::fabs(hitPhi-m_secondMCpartPhi) < 0.2)
-       )
-    {
-       simDir_sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrHEF;
-       simDir_sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrHEF;
-    }
-    sumCaloHCALEnergyEM  += energy  * absorberCorrectionEM * m_EM_addCalibrHEF;
-    sumCaloHCALEnergyHAD += energy  * absorberCorrectionHAD * m_HAD_addCalibrHEF;
-
-    if (m_energyCorrMethod == "ABSCORR")
-    caloHitParameters.m_hadronicEnergy = m_hCalToHadGeVEndCapHEF * energy * m_HAD_addCalibrHEF; // = energy; 
-    else if (m_energyCorrMethod == "WEIGHTING")
-    caloHitParameters.m_hadronicEnergy = m_hCalToHadGeVEndCapHEF * energy * getEnergyWeight(D_HGCHEF, detid.layer(), HAD) * m_hCalToMipEndCapHEF;
-
-    caloHitParameters.m_layer = detid.layer() ;
-    caloHitParameters.m_nCellRadiationLengths = nCellRadiationLengths; // 6.;
-    caloHitParameters.m_nCellInteractionLengths = nCellInteractionLengths; // 6.;
-    caloHitParameters.m_isDigital = false;
-    caloHitParameters.m_isInOuterSamplingLayer = false;
-    caloHitParameters.m_pParentAddress = (void *) hefrh;
-
-    // std::cout << "Parameters for input: " << std::endl ; 
-    // std::cout << "position vector X,Y,Z: " << caloHitParameters.m_positionVector.GetX() << " " 
-    //           << caloHitParameters.m_positionVector.GetY() << " " << caloHitParameters.m_positionVector.GetZ() << std::endl ; 
-    // std::cout << "expected direction X,Y,Z: " << caloHitParameters.m_expectedDirection.GetX() << " " 
-    //           << caloHitParameters.m_expectedDirection.GetY() << " " << caloHitParameters.m_expectedDirection.GetZ() << std::endl ; 
-    
-
-    // std::cout << "Processing HGC HEF rec hit with position (in cm) " << x << " " << y << " " << z << std::endl ; 
-    m_hitEperLayer_EM [caloHitParameters.m_layer.Get()+31] += caloHitParameters.m_electromagneticEnergy.Get();
-    m_hitEperLayer_HAD[caloHitParameters.m_layer.Get()+31] += caloHitParameters.m_hadronicEnergy.Get();
-    m_hitEperLayer_EM_HEF[caloHitParameters.m_layer.Get()] += caloHitParameters.m_electromagneticEnergy.Get();
-  
-    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*m_pPandora, caloHitParameters)); 
-
-    // std::cout << "BMD: This calo hit has been created" << std::endl ;   
-    nCaloHitsHEF++ ; 
+    ProcessRecHit(&(*HGChefRecHitHandle)[i], 4, HGCHEFGeometry, m_calibHEF, nCaloHitsHEF, nNotFoundHEF, pv,
+	              pandora::HCAL, pandora::ENDCAP, caloHitParameters);
   }
 
 
@@ -1518,168 +982,8 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   // 
   int nNotFoundHEB = 0, nCaloHitsHEB = 0 ; 
   for(unsigned i=0; i<HGChebRecHitHandle->size(); i++) {
-      
-    const HGCRecHit *hebrh = &(*HGChebRecHitHandle)[i];
-    const HGCHEDetId& detid = hebrh->id();
-    double energy = hebrh->energy() * m_Calibr_ADC2GeV_HEB;
-    if (energy<m_hCalThresEndCapHEB) continue;
-    //energy *= m_addCalibrHEB;
-    double time = hebrh->time();
-    double nCellInteractionLengths = 0.;
-    double nCellRadiationLengths = 0.;
-    double absorberCorrectionEM = 1.;
-    double absorberCorrectionHAD = 1.;
-    getLayerPropertiesHEB(hebrh, detid.layer(),
-      nCellInteractionLengths, nCellRadiationLengths,
-      absorberCorrectionEM, absorberCorrectionHAD);
-
-
-     //std::cout << "HGC HEB rechit cell " << detid.cell() << ", sector " << detid.sector() 
-     //          << ", subsector " << detid.subsector() << ", layer " << detid.layer() << ", z " << detid.zside() 
-     //          << " energy " << energy <<  " and time " << time << std::endl;
-
-    ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
-    if (thesubdet != 5) continue; // HGC HEB
-      
-    math::XYZVector axis;
-
-    edm::ESHandle<HGCalGeometry> hgchebGeoHandle ; 
-    iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",hgchebGeoHandle) ; 
-    const HGCalGeometry &hgchebtmp = *hgchebGeoHandle ; 
-
-    const HGCalGeometry &hgchebGeometry = dynamic_cast< const HGCalGeometry& > (hgchebtmp);
-    assert( &hgchebGeometry );
-
-    // Get the HGC topology
-    // edm::ESHandle<HGCalTopology> hgceeTopoHandle ; 
-    // iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",hgceeTopoHandle) ; 
-    // const HGCalTopology &hgceeTopology = *hgceeTopoHandle ; 
-    
-    // const HGCalGeometry geom = hgceeGeometry;
-    const FlatTrd *thisCell = static_cast<const FlatTrd*>(hgchebGeometry.getGeometry(detid));    
-    // const CaloCellGeometry *thisCell = hgchebGeometry.getGeometry(detid);
-  
-    // find rechit geometry
-    if(!thisCell) {
-      LogError("runPandoraHGCHEB") << "warning detid "<<detid.rawId() <<" not found in geometry"<<std::endl;
-      nNotFoundHEB++ ; 
-      continue;
-    }
-        
-    const HGCalGeometry::CornersVec corners = ( std::move( hgchebGeometry.getCorners( detid ) ) );
-    assert( corners.size() == 8 );
-    const pandora::CartesianVector NECorner( corners[0].x(), corners[0].y(), corners[0].z() );
-    const pandora::CartesianVector SECorner( corners[1].x(), corners[1].y(), corners[1].z() );
-
-    // Various thickness measurements: 
-    // m_cellSizeU --> Should be along beam for barrel, so along z...take as 0 <--> 1
-    // m_cellSizeV --> Perpendicular to U and to thickness, but what is thickness?...take as 0 <--> 3
-    // m_cellThickness --> Equivalent to depth?...take as 0 <--> 4
-    const pandora::CartesianVector corner0( corners[0].x(), corners[0].y(), corners[0].z() );
-    const pandora::CartesianVector corner1( corners[1].x(), corners[1].y(), corners[1].z() );
-    const pandora::CartesianVector corner3( corners[3].x(), corners[3].y(), corners[3].z() );
-    const pandora::CartesianVector corner4( corners[4].x(), corners[4].y(), corners[4].z() );
-    caloHitParameters.m_cellSizeU     = 10.0 * (corner0 - corner1).GetMagnitude() ; 
-    caloHitParameters.m_cellSizeV     = 10.0 * (corner0 - corner3).GetMagnitude() ; 
-    caloHitParameters.m_cellThickness = 10.0 * (corner0 - corner4).GetMagnitude() ; 
-    
-    // Position is average of all eight corners, convert from cm to mm
-    double x = 0.0, y = 0.0, z = 0.0 ; 
-    double xf = 0.0, yf = 0.0, zf = 0.0 ; 
-    double xb = 0.0, yb = 0.0, zb = 0.0 ; 
-    for (unsigned int i=0; i<8; i++) {
-      if ( i < 4 ) { xf += corners[i].x() ; yf += corners[i].y() ; zf += corners[i].z() ; }
-      else { xb += corners[i].x() ; yb += corners[i].y() ; zb += corners[i].z() ; }
-      x += corners[i].x() ; y += corners[i].y() ; z += corners[i].z() ; 
-    }
-    // Average x,y,z position 
-    x = x / 8.0 ; y = y / 8.0 ; z = z / 8.0 ; 
-    xf = xf / 8.0 ; yf = yf / 8.0 ; zf = zf / 8.0 ; 
-    xb = xb / 8.0 ; yb = yb / 8.0 ; zb = zb / 8.0 ; 
-    const pandora::CartesianVector positionVector(10.0*x,10.0*y,10.0*z);
-    caloHitParameters.m_positionVector = positionVector;
-
-    // Expected direction (currently) drawn from primary vertex to front face of calorimeter cell
-    const pandora::CartesianVector axisVector(10.0*(xf-pv.x()),10.0*(yf-pv.y()),10.0*(zf-pv.z())) ; 
-    caloHitParameters.m_expectedDirection = axisVector.GetUnitVector();
-    
-    // Cell normal vector runs from front face to back of cell
-    const pandora::CartesianVector normalVector(10.0*(xb-xf),10.0*(yb-yf),10.0*(zb-zf)) ; 
-    caloHitParameters.m_cellNormalVector = normalVector.GetUnitVector();
-
-    double distToFrontFace = sqrt( xf*xf + yf*yf + zf*zf ) ;
-    caloHitParameters.m_time = (distToFrontFace / speedoflight) + (time/1000.0) ; // dist = cm, c = cm/nsec, rechit t in psec
-    
-    caloHitParameters.m_hitType = pandora::HCAL;
-    caloHitParameters.m_hitRegion = pandora::ENDCAP;
-    caloHitParameters.m_inputEnergy = energy;
-    if (m_energyCorrMethod == "ABSCORR")
-    caloHitParameters.m_electromagneticEnergy = m_hCalToEMGeVEndCapHEB * energy * m_EM_addCalibrHEB; 
-    else if (m_energyCorrMethod == "WEIGHTING")
-    caloHitParameters.m_electromagneticEnergy = m_hCalToEMGeVEndCapHEB * energy * getEnergyWeight(D_HGCHEB, detid.layer(), EM) * m_hCalToMipEndCapHEB; 
-    caloHitParameters.m_mipEquivalentEnergy = m_hCalToMipEndCapHEB * energy ; /// m_addCalibrHEB; // = energy; // HTAN 0 NS AP  
-
-    //---choose hits with eta-phi close to init. mc particle
-    TVector3 hit3v(xf,yf,zf);
-    double hitEta = hit3v.PseudoRapidity();
-    double hitPhi = hit3v.Phi();
-    if (std::fabs(hitEta-m_firstMCpartEta) < 0.05
-          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.05) {
-
-     h_MIP_HEB->Fill(caloHitParameters.m_mipEquivalentEnergy.Get());
-    }
-    if (caloHitParameters.m_mipEquivalentEnergy.Get() < m_hCalMipThresEndCapHEB) {
-       //std::cout << "HEB MIP threshold rejected" << std::endl;
-       continue;
-    }
-    sumCaloEnergy += energy;
-    sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrHEB;
-    sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrHEB;
-//    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.5
-//          || std::fabs(hitEta-m_firstMCpartEta) < 0.5 )
-//          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.5) 
-    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.2
-             && std::fabs(hitPhi-m_firstMCpartPhi) < 0.2)
-          ||
-          (std::fabs(hitEta-m_secondMCpartEta) < 0.2
-           && std::fabs(hitPhi-m_secondMCpartPhi) < 0.2)
-       )   
-    {
-       simDir_sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrHEB;
-       simDir_sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrHEB;
-    }
-
-    sumCaloHCALEnergyEM  += energy  * absorberCorrectionEM * m_EM_addCalibrHEB;
-    sumCaloHCALEnergyHAD += energy  * absorberCorrectionHAD * m_HAD_addCalibrHEB;
-
-    if (m_energyCorrMethod == "ABSCORR")
-    caloHitParameters.m_hadronicEnergy = m_hCalToHadGeVEndCapHEB * energy * m_HAD_addCalibrHEB; // = energy; 
-    else if (m_energyCorrMethod == "WEIGHTING")
-    caloHitParameters.m_hadronicEnergy = m_hCalToHadGeVEndCapHEB * energy * getEnergyWeight(D_HGCHEB, detid.layer(), HAD) * m_hCalToMipEndCapHEB;
-    //caloHitParameters.m_layer = 31 + detid.layer();//PFLayer::ECAL_BARREL;
-    caloHitParameters.m_layer = detid.layer();//PFLayer::ECAL_BARREL;
-    caloHitParameters.m_nCellRadiationLengths = nCellRadiationLengths; // 6.;
-    caloHitParameters.m_nCellInteractionLengths = nCellInteractionLengths; // 6.;
-    caloHitParameters.m_isDigital = false;
-    caloHitParameters.m_isInOuterSamplingLayer = false;
-    caloHitParameters.m_pParentAddress = (void *) hebrh;
-
-    // std::cout << "Parameters for input: " << std::endl ; 
-    // std::cout << "position vector X,Y,Z: " << caloHitParameters.m_positionVector.GetX() << " " 
-    //           << caloHitParameters.m_positionVector.GetY() << " " << caloHitParameters.m_positionVector.GetZ() << std::endl ; 
-    // std::cout << "expected direction X,Y,Z: " << caloHitParameters.m_expectedDirection.GetX() << " " 
-    //           << caloHitParameters.m_expectedDirection.GetY() << " " << caloHitParameters.m_expectedDirection.GetZ() << std::endl ; 
-    
-
-    // std::cout << "Processing HGC HEB rec hit with position (in cm) " << x << " " << y << " " << z << std::endl ; 
-    m_hitEperLayer_EM [caloHitParameters.m_layer.Get()+31+12] += caloHitParameters.m_electromagneticEnergy.Get();
-    m_hitEperLayer_HAD[caloHitParameters.m_layer.Get()+31+12] += caloHitParameters.m_hadronicEnergy.Get();
-    m_hitEperLayer_EM_HEB[caloHitParameters.m_layer.Get()] += caloHitParameters.m_electromagneticEnergy.Get();
-  
-    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*m_pPandora, caloHitParameters)); 
-
-    nCaloHitsHEB++ ; 
-    // std::cout << "BMD: This calo hit has been created" << std::endl ;   
+    ProcessRecHit(&(*HGChebRecHitHandle)[i], 5, HGCHEBGeometry, m_calibHEB, nCaloHitsHEB, nNotFoundHEB, pv,
+	              pandora::HCAL, pandora::ENDCAP, caloHitParameters);
   }
 
   h_sumCaloE->Fill(sumCaloEnergy);
@@ -1702,12 +1006,14 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
 
   for (int ilay=0; ilay<100; ilay++) {
      int ibin = ilay+1;
-     h_hitEperLayer_EM->SetBinContent(ibin,m_hitEperLayer_EM[ilay]+ h_hitEperLayer_EM->GetBinContent(ibin));
-     h_hitEperLayer_HAD->SetBinContent(ibin,m_hitEperLayer_HAD[ilay]+ h_hitEperLayer_HAD->GetBinContent(ibin));
-
-     h_hitEperLayer_EM_EE ->SetBinContent(ibin,m_hitEperLayer_EM_EE [ilay]+ h_hitEperLayer_EM_EE ->GetBinContent(ibin));
-     h_hitEperLayer_EM_HEF->SetBinContent(ibin,m_hitEperLayer_EM_HEF[ilay]+ h_hitEperLayer_EM_HEF->GetBinContent(ibin));
-     h_hitEperLayer_EM_HEB->SetBinContent(ibin,m_hitEperLayer_EM_HEB[ilay]+ h_hitEperLayer_EM_HEB->GetBinContent(ibin));
+	 
+     h_hitEperLayer_EM[subdet::EE] ->SetBinContent(ibin,m_hitEperLayer_EM[subdet::EE] [ilay]+ h_hitEperLayer_EM[subdet::EE] ->GetBinContent(ibin));
+     h_hitEperLayer_EM[subdet::HEF]->SetBinContent(ibin,m_hitEperLayer_EM[subdet::HEF][ilay]+ h_hitEperLayer_EM[subdet::HEF]->GetBinContent(ibin));
+     h_hitEperLayer_EM[subdet::HEB]->SetBinContent(ibin,m_hitEperLayer_EM[subdet::HEB][ilay]+ h_hitEperLayer_EM[subdet::HEB]->GetBinContent(ibin));
+	 
+	 h_hitEperLayer_HAD[subdet::EE] ->SetBinContent(ibin,m_hitEperLayer_HAD[subdet::EE] [ilay]+ h_hitEperLayer_HAD[subdet::EE] ->GetBinContent(ibin));
+     h_hitEperLayer_HAD[subdet::HEF]->SetBinContent(ibin,m_hitEperLayer_HAD[subdet::HEF][ilay]+ h_hitEperLayer_HAD[subdet::HEF]->GetBinContent(ibin));
+     h_hitEperLayer_HAD[subdet::HEB]->SetBinContent(ibin,m_hitEperLayer_HAD[subdet::HEB][ilay]+ h_hitEperLayer_HAD[subdet::HEB]->GetBinContent(ibin));
   }
 
 
@@ -1722,6 +1028,177 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   std::cout << "DetIDs not found in geometry: " << nNotFoundEE << " (HGC EE) " 
         << nNotFoundHEF << " (HGC HEF) " << nNotFoundHEB << " (HGC HEB) " << std::endl ;
 
+}
+
+void runPandora::ProcessRecHit(const CaloRecHit* rh, int isubdet, const CaloSubdetectorGeometry& geom, CalibCalo* calib, int& nCaloHits, int& nNotFound, reco::Vertex& pv,
+                               const pandora::HitType hitType, const pandora::HitRegion hitRegion, PandoraApi::RectangularCaloHitParameters& caloHitParameters)
+{
+  const DetId& detid = rh->detid();
+  double energy = rh->energy() * calib->GetADC2GeV();
+
+  if (energy < calib->m_CalThresh) return;
+
+  double time = rh->time();
+  // std::cout << "energy " << energy <<  " time " << time <<std::endl;
+
+  if (detid.subdetId() != isubdet) return;
+  
+  const CaloCellGeometry *thisCell = geom.getGeometry(detid);
+  if(!thisCell) {
+      LogError("runPandoraPrepareHits") << "warning detid " << detid.rawId() << " not found in geometry" << std::endl;
+	  nNotFound++;
+      return;
+  }
+  
+  unsigned int layer = 0;
+  if(hitRegion==pandora::ENDCAP && hitType==pandora::ECAL) layer = (unsigned int) ((HGCEEDetId)(detid)).layer() ;
+  else if(hitRegion==pandora::ENDCAP && hitType==pandora::HCAL) layer = (unsigned int) ((HGCHEDetId)(detid)).layer() ;
+  
+  //hack because calo and HGC CornersVec are different formats
+  std::vector<GlobalPoint> corners(8);
+  if(hitRegion==pandora::BARREL){
+    const CaloCellGeometry::CornersVec& cornersC = thisCell->getCorners();
+    assert( cornersC.size() == 8 );
+	for(unsigned int i=0; i<8; i++){
+	  corners[i] = cornersC[i];
+	}
+  }
+  else if(hitRegion==pandora::ENDCAP){
+    const HGCalGeometry::CornersVec cornersH = ( std::move( (dynamic_cast< const HGCalGeometry& > (geom) ).getCorners( detid ) ) );
+    assert( cornersH.size() == 8 );
+	for(unsigned int i=0; i<8; i++){
+	  corners[i] = cornersH[i];
+	}
+  }
+  assert( corners.size() == 8 );
+
+  // Various thickness measurements: 
+  // m_cellSizeU --> Should be along beam for barrel, so along z...take as 0 <--> 1
+  // m_cellSizeV --> Perpendicular to U and to thickness, but what is thickness?...take as 0 <--> 3
+  // m_cellThickness --> Equivalent to depth?...take as 0 <--> 4
+  const pandora::CartesianVector corner0( corners[0].x(), corners[0].y(), corners[0].z() );
+  const pandora::CartesianVector corner1( corners[1].x(), corners[1].y(), corners[1].z() );
+  const pandora::CartesianVector corner3( corners[3].x(), corners[3].y(), corners[3].z() );
+  const pandora::CartesianVector corner4( corners[4].x(), corners[4].y(), corners[4].z() );
+  caloHitParameters.m_cellSizeU     = 10.0 * (corner0 - corner1).GetMagnitude() ; 
+  caloHitParameters.m_cellSizeV     = 10.0 * (corner0 - corner3).GetMagnitude() ; 
+  caloHitParameters.m_cellThickness = 10.0 * (corner0 - corner4).GetMagnitude() ; 
+ if(calib->m_id==subdet::EE){   
+ for (unsigned int i=0; i<8; i++) { 
+   std::cout << "Corners " << i << ": x " << corners[i].x() << " y " << corners[i].y() << " z " << corners[i].z() << std::endl ; 
+ }
+ }
+  // Position is average of all eight corners, convert from cm to mm
+  double x = 0.0, y = 0.0, z = 0.0 ; 
+  double xf = 0.0, yf = 0.0, zf = 0.0 ; 
+  double xb = 0.0, yb = 0.0, zb = 0.0 ; 
+  for (unsigned int i=0; i<8; i++) {
+    if ( i < 4 ) { xf += corners[i].x() ; yf += corners[i].y() ; zf += corners[i].z() ; }
+    else { xb += corners[i].x() ; yb += corners[i].y() ; zb += corners[i].z() ; }
+    x += corners[i].x() ; y += corners[i].y() ; z += corners[i].z() ; 
+  }
+  // Average x,y,z position 
+  x = x / 8.0 ; y = y / 8.0 ; z = z / 8.0 ; 
+  xf = xf / 8.0 ; yf = yf / 8.0 ; zf = zf / 8.0 ; 
+  xb = xb / 8.0 ; yb = yb / 8.0 ; zb = zb / 8.0 ; 
+  const pandora::CartesianVector positionVector(10.0*x,10.0*y,10.0*z);
+  caloHitParameters.m_positionVector = positionVector;
+
+  // Expected direction (currently) drawn from primary vertex to front face of calorimeter cell
+  const pandora::CartesianVector axisVector(10.0*(xf-pv.x()),10.0*(yf-pv.y()),10.0*(zf-pv.z())) ; 
+  caloHitParameters.m_expectedDirection = axisVector.GetUnitVector();
+  
+  // Cell normal vector runs from front face to back of cell
+  const pandora::CartesianVector normalVector(10.0*(xb-xf),10.0*(yb-yf),10.0*(zb-zf)) ; 
+  caloHitParameters.m_cellNormalVector = normalVector.GetUnitVector();
+
+  double distToFrontFace = sqrt( xf*xf + yf*yf + zf*zf ) ;
+  // dist = cm, c = cm/nsec, rechit t in psec
+  caloHitParameters.m_time = (distToFrontFace / speedoflight) + (time/1000.0) ; 
+ 
+  //set hit and energy values
+  caloHitParameters.m_hitType = hitType;
+  caloHitParameters.m_hitRegion = hitRegion;
+  caloHitParameters.m_inputEnergy = energy;
+  caloHitParameters.m_electromagneticEnergy = calib->GetEMCalib(layer) * energy;
+  caloHitParameters.m_hadronicEnergy = calib->GetHADCalib(layer) * energy; // = energy; 
+  caloHitParameters.m_mipEquivalentEnergy = calib->m_CalToMip * energy;
+
+  if(hitRegion==pandora::ENDCAP){
+    double angleCorrectionMIP(1.); 
+    double hitR = distToFrontFace; 
+    double hitZ = zf;
+    angleCorrectionMIP = hitR/hitZ; 
+
+    //---choose hits with eta-phi close to init. mc particle
+    TVector3 hit3v(xf,yf,zf);
+    double hitEta = hit3v.PseudoRapidity();
+    double hitPhi = hit3v.Phi();
+    h_hit_Eta -> Fill(hitEta);
+    h_hit_Phi -> Fill(hitPhi);
+    //std::cout << "TEST: m_firstMCpartEta = " << m_firstMCpartEta
+    //   << ", hitEta = " << hitEta << std::endl;
+    if (std::fabs(hitEta-m_firstMCpartEta) < 0.05
+          && std::fabs(hitPhi-m_firstMCpartPhi) < 0.05) {
+       h_MIP[calib->m_id] -> Fill(caloHitParameters.m_mipEquivalentEnergy.Get());
+       h_MIP_Corr[calib->m_id] -> Fill(caloHitParameters.m_mipEquivalentEnergy.Get()*angleCorrectionMIP);
+    }
+    if (caloHitParameters.m_mipEquivalentEnergy.Get() < calib->m_CalMipThresh) {
+       //std::cout << "EE MIP threshold rejected" << std::endl;
+       return;
+    }
+
+//    if ( ( std::fabs(hitEta-m_firstMCpartEta) < 0.5
+//             || std::fabs(hitEta+m_firstMCpartEta) < 0.5 )
+//          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.5) 
+    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.2
+          && std::fabs(hitPhi-m_firstMCpartPhi) < 0.2)
+          ||
+          (std::fabs(hitEta-m_secondMCpartEta) < 0.2
+           && std::fabs(hitPhi-m_secondMCpartPhi) < 0.2)
+       )
+    {
+       simDir_sumCaloEnergyEM  += caloHitParameters.m_electromagneticEnergy.Get();
+       simDir_sumCaloEnergyHAD += caloHitParameters.m_hadronicEnergy.Get();
+    }
+  }
+  else if (caloHitParameters.m_mipEquivalentEnergy.Get() < calib->m_CalMipThresh) {
+     //std::cout << "EcalBarrel MIP threshold rejected" << std::endl;
+     return;
+  }
+
+  sumCaloEnergy += energy;
+  sumCaloEnergyEM += caloHitParameters.m_electromagneticEnergy.Get();
+  sumCaloEnergyHAD += caloHitParameters.m_hadronicEnergy.Get();
+  if(hitType==pandora::ECAL){
+    sumCaloECALEnergyEM  += energy  ;//* absorberCorrectionEM;
+    sumCaloECALEnergyHAD += energy  ;//* absorberCorrectionHAD;
+	if(hitRegion==pandora::ENDCAP) sumCaloECALEnergyHAD_unc += energy ;
+  }
+  else if(hitType==pandora::HCAL){
+    sumCaloHCALEnergyEM  += energy  ;//* absorberCorrectionEM;
+    sumCaloHCALEnergyHAD += energy  ;//* absorberCorrectionHAD;	  
+  }
+ 
+  if(hitRegion==pandora::BARREL){
+    caloHitParameters.m_layer = 1.;//PFLayer::ECAL_BARREL;
+    caloHitParameters.m_nCellRadiationLengths = 0.0; // 6.;
+    caloHitParameters.m_nCellInteractionLengths = 0.0; // 6.;
+  }
+  else if(hitRegion==pandora::ENDCAP){
+    caloHitParameters.m_layer = layer;
+    caloHitParameters.m_nCellRadiationLengths = calib->nCellRadiationLengths[layer];
+    caloHitParameters.m_nCellInteractionLengths = calib->nCellInteractionLengths[layer]; // 6.;
+	m_hitEperLayer_EM[calib->m_id][layer] += caloHitParameters.m_electromagneticEnergy.Get();
+	m_hitEperLayer_HAD[calib->m_id][layer] += caloHitParameters.m_hadronicEnergy.Get();
+  }
+  caloHitParameters.m_isDigital = false;
+  caloHitParameters.m_isInOuterSamplingLayer = false;
+  caloHitParameters.m_pParentAddress = (void *) rh;
+
+  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*m_pPandora, caloHitParameters));
+ 
+  nCaloHits++;
 }
 
 
@@ -1827,44 +1304,44 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
 }
 
 void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSetup){
-    // PandoraPFANew/v00-09/include/Pandora/PandoraInternal.h
-    // typedef std::set<ParticleFlowObject *> PfoList;  
-    //     PandoraPFANew/v00-09/include/Api/PandoraContentApi.h
-        //    class ParticleFlowObject
-        //    {
-        //    public:
-        //        /**
-        //         *  @brief  Parameters class
-        //         */
-        //        class Parameters
-        //        {
-        //        public:
-        //            pandora::InputInt               m_particleId;       ///< The particle flow object id (PDG code)
-        //            pandora::InputInt               m_charge;           ///< The particle flow object charge
-        //            pandora::InputFloat             m_mass;             ///< The particle flow object mass
-        //            pandora::InputFloat             m_energy;           ///< The particle flow object energy
-        //            pandora::InputCartesianVector   m_momentum;         ///< The particle flow object momentum
-        //            pandora::ClusterList            m_clusterList;      ///< The clusters in the particle flow object
-        //            pandora::TrackList              m_trackList;        ///< The tracks in the particle flow object
-        //        };
-        //        /**
-        //         *  @brief  Create a particle flow object
-        //         * 
-        //         *  @param  algorithm the algorithm creating the particle flow object
-        //         *  @param  particleFlowObjectParameters the particle flow object parameters
-        //         */
-        //        static pandora::StatusCode Create(const pandora::Algorithm &algorithm, const Parameters &parameters);
-        //    };
-        //    typedef ParticleFlowObject::Parameters ParticleFlowObjectParameters;
+	// PandoraPFANew/v00-09/include/Pandora/PandoraInternal.h
+	// typedef std::set<ParticleFlowObject *> PfoList;  
+	// 	PandoraPFANew/v00-09/include/Api/PandoraContentApi.h
+    	//	class ParticleFlowObject
+    	//	{
+    	//	public:
+    	//	    /**
+    	//	     *  @brief  Parameters class
+    	//	     */
+    	//	    class Parameters
+    	//	    {
+    	//	    public:
+    	//	        pandora::InputInt               m_particleId;       ///< The particle flow object id (PDG code)
+    	//	        pandora::InputInt               m_charge;           ///< The particle flow object charge
+    	//	        pandora::InputFloat             m_mass;             ///< The particle flow object mass
+    	//	        pandora::InputFloat             m_energy;           ///< The particle flow object energy
+    	//	        pandora::InputCartesianVector   m_momentum;         ///< The particle flow object momentum
+    	//	        pandora::ClusterList            m_clusterList;      ///< The clusters in the particle flow object
+    	//	        pandora::TrackList              m_trackList;        ///< The tracks in the particle flow object
+    	//	    };
+    	//	    /**
+    	//	     *  @brief  Create a particle flow object
+    	//	     * 
+    	//	     *  @param  algorithm the algorithm creating the particle flow object
+    	//	     *  @param  particleFlowObjectParameters the particle flow object parameters
+    	//	     */
+    	//	    static pandora::StatusCode Create(const pandora::Algorithm &algorithm, const Parameters &parameters);
+    	//	};
+    	//	typedef ParticleFlowObject::Parameters ParticleFlowObjectParameters;
 
-    // const pandora::CartesianVector momentum(1., 2., 3.);
-    // for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(), itPFOEnd = pPfoList->end(); itPFO != itPFOEnd; ++itPFO){
-    //   (*itPFO)->SetParticleId();
-    //   (*itPFO)->SetCharge();
-    //   (*itPFO)->SetMass();
-    //   (*itPFO)->SetEnergy();
-    //   (*itPFO)->SetMomentum();
-    // }
+	// const pandora::CartesianVector momentum(1., 2., 3.);
+	// for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(), itPFOEnd = pPfoList->end(); itPFO != itPFOEnd; ++itPFO){
+	//   (*itPFO)->SetParticleId();
+	//   (*itPFO)->SetCharge();
+	//   (*itPFO)->SetMass();
+	//   (*itPFO)->SetEnergy();
+	//   (*itPFO)->SetMomentum();
+	// }
   
   const pandora::PfoList *pPfoList = NULL;
   // PANDORA_RETURN_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::GetCurrentPfoList(*m_pPandora, pPfoList));
@@ -1943,7 +1420,7 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
         Cluster *pCluster = (*clusterIter);
 //        ene_em  = pCluster->GetElectromagneticEnergy();
 //        ene_had = pCluster->GetHadronicEnergy();
-//     std::cout << " clusterEMenergy INI " << pCluster->GetElectromagneticEnergy()  << std::endl;  
+//	 std::cout << " clusterEMenergy INI " << pCluster->GetElectromagneticEnergy()  << std::endl;  
 // hits
         const OrderedCaloHitList &orderedCaloHitList(pCluster->GetOrderedCaloHitList());
         CaloHitList pCaloHitList;
@@ -1980,10 +1457,6 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
            {
               const HGCRecHit *hgcHit = (HGCRecHit*)((*itCluster)[iHit]);
               //const HGCEEDetId& detidEE = hgcHit->id();
-              double nCellInteractionLengths = 0.;
-              double nCellRadiationLengths = 0.;
-              double absorberCorrectionEM = 1.;
-              double absorberCorrectionHAD = 1.;
                   
               const DetId& detid = hgcHit->id();
               if (!detid)
@@ -1994,41 +1467,19 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
               ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
               //ForwardSubdetector thesubdetHE = (ForwardSubdetector)detidHE.subdetId();
               if (thesubdet == 3) {
-                 int layer = (int) ((HGCEEDetId)(detid)).layer() ;
-                 if (m_energyCorrMethod=="ABSCORR") {
-                    getLayerPropertiesEE(hgcHit, layer,
-                          nCellInteractionLengths, nCellRadiationLengths,
-                          absorberCorrectionEM, absorberCorrectionHAD);
-                    clusterEMenergy += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * absorberCorrectionEM * m_EM_addCalibrEE;
-                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * absorberCorrectionHAD * m_HAD_addCalibrEE;
-                 }
-                 else if (m_energyCorrMethod == "WEIGHTING") {
-                    clusterEMenergy += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer, EM) * m_eCalToMipEndCap;
-                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer,HAD) * m_eCalToMipEndCap;
-                 }
+                int layer = (int) ((HGCEEDetId)(detid)).layer() ;
+	  		    clusterEMenergy += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
+	  		    clusterHADenergy += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
               }
               else if (thesubdet == 4) {
-                 int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-                 if (m_energyCorrMethod=="ABSCORR") {
-                    clusterEMenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF  * absorberCorrectionEM  * m_EM_addCalibrHEF ;
-                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * absorberCorrectionHAD * m_HAD_addCalibrHEF;
-                 }
-                 else if (m_energyCorrMethod=="WEIGHTING") {
-                    clusterEMenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF  * getEnergyWeight(D_HGCHEF, layer, EM) * m_hCalToMipEndCapHEF;
-                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * getEnergyWeight(D_HGCHEF, layer,HAD) * m_hCalToMipEndCapHEF;
-                 }
-           
+                int layer = (int) ((HGCHEDetId)(detid)).layer() ;
+                clusterEMenergy += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetEMCalib(layer);
+	  		    clusterHADenergy += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
               }
               else if (thesubdet == 5) {
-                 int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-                 if (m_energyCorrMethod=="ABSCORR") {
-                    clusterEMenergy  += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * absorberCorrectionEM  * m_EM_addCalibrHEB ;
-                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * absorberCorrectionHAD * m_HAD_addCalibrHEB;
-                 }
-                 else if (m_energyCorrMethod=="WEIGHTING") {
-                    clusterEMenergy  += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer, EM) * m_hCalToMipEndCapHEB;
-                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer,HAD) * m_hCalToMipEndCapHEB;
-                 }  
+                int layer = (int) ((HGCHEDetId)(detid)).layer() ;
+                clusterEMenergy += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetEMCalib(layer);
+	  		    clusterHADenergy += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
               }
               else {
               }
@@ -2039,10 +1490,10 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
         ene_em = clusterEMenergy;
         ene_had = clusterHADenergy;
 
-    const TrackList &trackList((*itPFO)->GetTrackList());
+	const TrackList &trackList((*itPFO)->GetTrackList());
         TrackVector trackVector(trackList.begin(), trackList.end());
 
-    ene_track=0; 
+	ene_track=0; 
 
      for (TrackVector::const_iterator trackIter = trackVector.begin(), trackIterEnd = trackVector.end();
         trackIter != trackIterEnd; ++trackIter)
@@ -2137,10 +1588,6 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
 
          const HGCRecHit *hgcHit = (HGCRecHit*)((*itCluster)[iHit]);
          //const HGCEEDetId& detidEE = hgcHit->id();
-         double nCellInteractionLengths = 0.;
-         double nCellRadiationLengths = 0.;
-         double absorberCorrectionEM = 1.;
-         double absorberCorrectionHAD = 1.;
 
          const DetId& detid = hgcHit->id();
          if (!detid)
@@ -2151,72 +1598,50 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
          ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
          //ForwardSubdetector thesubdetHE = (ForwardSubdetector)detidHE.subdetId();
          if (thesubdet == 3) {
-            int layer = (int) ((HGCEEDetId)(detid)).layer() ;
-            if (m_energyCorrMethod=="ABSCORR") {
-               getLayerPropertiesEE(hgcHit, layer,
-                     nCellInteractionLengths, nCellRadiationLengths,
-                     absorberCorrectionEM, absorberCorrectionHAD);
-               sumClustEMEcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * absorberCorrectionEM * m_EM_addCalibrEE;
-               sumClustHADEcalE += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * absorberCorrectionHAD * m_HAD_addCalibrEE;
-            }
-            else if (m_energyCorrMethod == "WEIGHTING") {
-               sumClustEMEcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer, EM) * m_eCalToMipEndCap;
-               sumClustHADEcalE += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer,HAD) * m_eCalToMipEndCap;
-            }
+           int layer = (int) ((HGCEEDetId)(detid)).layer() ;
+	  	   sumClustEMEcalE += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
+	  	   sumClustHADEcalE += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
          }
          else if (thesubdet == 4) {
-            int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-            if (m_energyCorrMethod=="ABSCORR") {
-               sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF  * absorberCorrectionEM  * m_EM_addCalibrHEF ;
-               sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * absorberCorrectionHAD * m_HAD_addCalibrHEF;
-            }
-            else if (m_energyCorrMethod=="WEIGHTING") {
-               sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF  * getEnergyWeight(D_HGCHEF, layer, EM) * m_hCalToMipEndCapHEF;
-               sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * getEnergyWeight(D_HGCHEF, layer,HAD) * m_hCalToMipEndCapHEF;
-            }
-
+           int layer = (int) ((HGCHEDetId)(detid)).layer() ;
+           sumClustEMHcalE += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetEMCalib(layer);
+	  	   sumClustHADHcalE += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
          }
          else if (thesubdet == 5) {
            int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-           if (m_energyCorrMethod=="ABSCORR") {
-            sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * absorberCorrectionEM  * m_EM_addCalibrHEB ;
-            sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * absorberCorrectionHAD * m_HAD_addCalibrHEB;
-           }
-            else if (m_energyCorrMethod=="WEIGHTING") {
-            sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer, EM) * m_hCalToMipEndCapHEB;
-            sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer,HAD) * m_hCalToMipEndCapHEB;
-            }
+           sumClustEMHcalE += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetEMCalib(layer);
+	  	   sumClustHADHcalE += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
          }
          else {
          }
 
       }
 
-//      for (pandora::CaloHitAddressList::const_iterator hIter = caloHitAddressList.begin(), hIterEnd = caloHitAddressList.end(); hIter != hIterEnd; ++hIter){    
-//    pandora::CaloHit * ch = (pandora::CaloHit *) (*hIter);
-//    EcalRecHit * hgcrh = NULL;
-//    HBHERecHit * hrh = NULL;
+//      for (pandora::CaloHitAddressList::const_iterator hIter = caloHitAddressList.begin(), hIterEnd = caloHitAddressList.end(); hIter != hIterEnd; ++hIter){	
+//	pandora::CaloHit * ch = (pandora::CaloHit *) (*hIter);
+//	EcalRecHit * hgcrh = NULL;
+//	HBHERecHit * hrh = NULL;
 //
-//    if (ch->GetHitType() ==  pandora::ECAL) { 
-//      hgcrh = (EcalRecHit *) (*hIter);
-//      std::cout << "EcalRecHit energy " << hgcrh->energy() <<  std::endl;
+//	if (ch->GetHitType() ==  pandora::ECAL) { 
+//	  hgcrh = (EcalRecHit *) (*hIter);
+//	  std::cout << "EcalRecHit energy " << hgcrh->energy() <<  std::endl;
 //     sumClustEcalE += hgcrh->energy();
-//    } else if (ch->GetHitType() ==  pandora::HCAL) {  
-//      hrh = (HBHERecHit *) (*hIter); 
-//      std::cout << "HcalRecHit energy " << hrh->energy() <<  std::endl;          
+//	} else if (ch->GetHitType() ==  pandora::HCAL) {  
+//	  hrh = (HBHERecHit *) (*hIter); 
+//	  std::cout << "HcalRecHit energy " << hrh->energy() <<  std::endl;		  
 //     sumClustHcalE += hrh->energy();
-//    }
-//    else {
-//      std::cout << " No ECAL or HCAL??? What is this? " << ch->GetHitType() << std::endl;
+//	}
+//	else {
+//	  std::cout << " No ECAL or HCAL??? What is this? " << ch->GetHitType() << std::endl;
 //      nbNonEHcalHit++;
-//    }
-    
+//	}
+	
 //      }
 //      std::cout << "nbNonEHcalHit: " << nbNonEHcalHit << std::endl;
  
 
       // for (unsigned int iHit = 0; iHit < nHitsInCluster; ++iHit){
-      //     EVENT::CalorimeterHit *pCalorimeterHit = (CalorimeterHit*)((*itCluster)[iHit]);
+      // 	EVENT::CalorimeterHit *pCalorimeterHit = (CalorimeterHit*)((*itCluster)[iHit]);
       // }
  
     }
@@ -2238,7 +1663,7 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
   h_sumPfoE->Fill(_sumPFOEnergy);
   h_nbPFOs->Fill(nbPFOs);
 
-    
+	
 }
 
 //Get the track siblings
@@ -2338,19 +1763,21 @@ void runPandora::beginJob()
   h_hit_Eta = new TH1F("hit_Eta","hit_Eta",300,-3.5,3.5);
   h_hit_Phi = new TH1F("hit_Phi","hit_Phi",300,-3.5,3.5);
 
-  h_hitEperLayer_EM  = new TH1F("hitEperLayer_EM" ,"sum hit E per layer",100,-0.5,99.5);
-  h_hitEperLayer_HAD = new TH1F("hitEperLayer_HAD","sum hit E per layer",100,-0.5,99.5);
-  h_hitEperLayer_EM_EE  = new TH1F("hitEperLayer_EM_EE"  ,"sum hit E per layer EE",100,-0.5,99.5);
-  h_hitEperLayer_EM_HEF = new TH1F("hitEperLayer_EM_HEF" ,"sum hit E per layer HEF",100,-0.5,99.5);
-  h_hitEperLayer_EM_HEB = new TH1F("hitEperLayer_EM_HEB" ,"sum hit E per layer HEB",100,-0.5,99.5);
+  h_hitEperLayer_EM[subdet::EE]  = new TH1F("hitEperLayer_EM_EE"  ,"sum hit E per layer EE",100,-0.5,99.5);
+  h_hitEperLayer_EM[subdet::HEF] = new TH1F("hitEperLayer_EM_HEF" ,"sum hit E per layer HEF",100,-0.5,99.5);
+  h_hitEperLayer_EM[subdet::HEB] = new TH1F("hitEperLayer_EM_HEB" ,"sum hit E per layer HEB",100,-0.5,99.5);
+  h_hitEperLayer_HAD[subdet::EE]  = new TH1F("hitEperLayer_HAD_EE"  ,"sum hit E per layer EE",100,-0.5,99.5);
+  h_hitEperLayer_HAD[subdet::HEF] = new TH1F("hitEperLayer_HAD_HEF" ,"sum hit E per layer HEF",100,-0.5,99.5);
+  h_hitEperLayer_HAD[subdet::HEB] = new TH1F("hitEperLayer_HAD_HEB" ,"sum hit E per layer HEB",100,-0.5,99.5);
 
-  h_MIP_EE  = new TH1F("MIPEE" ,"Mip in EE ",1000,0,10);
-  h_MIP_HEF = new TH1F("MIPHEF","Mip in HEF",1000,0,10);
-  h_MIP_HEB = new TH1F("MIPHEB","Mip in HEB",1000,0,10);
+  
+  h_MIP[subdet::EE]  = new TH1F("MIPEE" ,"Mip in EE ",1000,0,10);
+  h_MIP[subdet::HEF] = new TH1F("MIPHEF","Mip in HEF",1000,0,10);
+  h_MIP[subdet::HEB] = new TH1F("MIPHEB","Mip in HEB",1000,0,10);
 
-  h_MIP_Corr_EE  = new TH1F("MIPCorrEE" ,"Mip corrected in EE ",1000,0,10);
-  h_MIP_Corr_HEF = new TH1F("MIPCorrHEF","Mip corrected in HEF",1000,0,10);
-  h_MIP_Corr_HEB = new TH1F("MIPCorrHEB","Mip corrected in HEB",1000,0,10);
+  h_MIP_Corr[subdet::EE]  = new TH1F("MIPCorrEE" ,"Mip corrected in EE ",1000,0,10);
+  h_MIP_Corr[subdet::HEF] = new TH1F("MIPCorrHEF","Mip corrected in HEF",1000,0,10);
+  h_MIP_Corr[subdet::HEB] = new TH1F("MIPCorrHEB","Mip corrected in HEB",1000,0,10);
 
   mytree = new TTree("mytree","mytree");
   mytree->Branch("ene_true",&ene_true);
@@ -2377,149 +1804,30 @@ void runPandora::beginJob()
   TH1::AddDirectory(oldAddDir); 
 
   // read in calibration parameters
+  nHGCeeLayers = 32; nHGChefLayers = 32; nHGChebLayers = 21;
+  m_calibEB = new CalibCalo(subdet::EB);
+  m_calibHB = new CalibCalo(subdet::HB);
+  m_calibEE = new CalibHGCEE(nHGCeeLayers,m_energyCorrMethod,stm);
+  m_calibHEF = new CalibHGCHEF(nHGChefLayers,m_energyCorrMethod,stm);
+  m_calibHEB = new CalibHGCHEB(nHGChebLayers,m_energyCorrMethod,stm);
   initPandoraCalibrParameters();
   readCalibrParameterFile();
   if (m_energyCorrMethod == "WEIGHTING")
      readEnergyWeight();
+  //initialize layer parameters after reading weights
+  m_calibEE->initialize();
+  m_calibHEF->initialize();
+  m_calibHEB->initialize();
 
-  m_hitEperLayer_EM  = new double[100];
-  m_hitEperLayer_HAD = new double[100];
+  m_hitEperLayer_EM[subdet::EE]  = new double[100];
+  m_hitEperLayer_EM[subdet::HEF] = new double[100];
+  m_hitEperLayer_EM[subdet::HEB] = new double[100];
+  m_hitEperLayer_HAD[subdet::EE]  = new double[100];
+  m_hitEperLayer_HAD[subdet::HEF] = new double[100];
+  m_hitEperLayer_HAD[subdet::HEB] = new double[100];  
 
-  m_hitEperLayer_EM_EE  = new double[100];
-  m_hitEperLayer_EM_HEF = new double[100];
-  m_hitEperLayer_EM_HEB = new double[100];
-
+  speedoflight = (CLHEP::c_light/CLHEP::cm)/CLHEP::ns;
 }
-
-
-void runPandora::getLayerPropertiesEE (const HGCRecHit *eerh, int layer,
-      double & nCellInteractionLengths, double & nCellRadiationLengths,
-      double & absorberCorrectionEM, double & absorberCorrectionHAD
-      )
-{
-   double absorberThickness_Pb[3] = { 1.6, 3.3, 5.6}; //mm
-   double absorberThickness_Cu[3] = { 3. , 3. , 3. }; //mm
-
-   double absorberRadLength_Pb   = 0.561 * 10; //mm
-   double absorberRadLength_Cu   = 1.436 * 10; //mm
-
-   double absorberIntLength_Pb = 17.59 * 10; //mm
-   double absorberIntLength_Cu = 15.32 * 10; //mm
-
-   double firstLayerCu = 3.0; //mm
-   double firstLayerX0   = firstLayerCu / absorberRadLength_Cu;
-   double firstLayerLdaI = firstLayerCu / absorberIntLength_Cu;
-
-   int layerSet = 0;
-   if ( 2 <= layer && layer <= 11 ) layerSet = 0;
-   else if ( 12<= layer && layer <= 21 ) layerSet = 1;
-   else if ( 22<= layer && layer <= 31 ) layerSet = 2;
-   else {
-      //std::cout << "OOUPSSSSSSSSSSSSSS, unknown layer!!!!" << std::endl;
-      return;
-   } //if layer == 1 then take predefined values (should be 1 & 0)
-
-   double thisLayerX0 = absorberThickness_Pb[layerSet] / absorberRadLength_Pb
-      + absorberThickness_Cu[layerSet] / absorberRadLength_Cu;
-   double thisLayerLdaI = absorberThickness_Pb[layerSet] / absorberIntLength_Pb
-      + absorberThickness_Cu[layerSet] / absorberIntLength_Cu;
-
-   absorberCorrectionEM  = thisLayerX0   / firstLayerX0  ;
-   absorberCorrectionHAD = thisLayerLdaI / firstLayerLdaI;
-
-   nCellInteractionLengths = thisLayerLdaI;
-   nCellRadiationLengths   = thisLayerX0  ;
-
-   return;
-}
-void runPandora::getLayerPropertiesHEF (const HGCRecHit *eerh, int layer,
-      double & nCellInteractionLengths, double & nCellRadiationLengths,
-      double & absorberCorrectionEM, double & absorberCorrectionHAD
-      )
-{
-   double absorberRadLength_Cu = 1.436 * 10; //mm
-   double absorberIntLength_Cu = 15.32 * 10; //mm
-
-   double absorberRadLength_Br = 0.561 * 10; //lead instead, Valeri's mail, 16/7/2014
-   double absorberIntLength_Br = 17.59 * 10; //FIXME v5; v4 of geometry: may change to Brass
-
-   double absorberThickness_Cu = 3.  ; //mm
-   double absorberThickness_Br = 52. ; //mm
-
-   double layerX0 = absorberThickness_Cu / absorberRadLength_Cu
-      + absorberThickness_Br / absorberRadLength_Br;
-   double layerLdaI = absorberThickness_Cu / absorberIntLength_Cu
-      + absorberThickness_Br / absorberIntLength_Br;
-
-
-   nCellInteractionLengths = layerLdaI;
-   nCellRadiationLengths   = layerX0  ;
-
-   return;
-}
-void runPandora::getLayerPropertiesHEB (const HGCRecHit *eerh, int layer,
-      double & nCellInteractionLengths, double & nCellRadiationLengths,
-      double & absorberCorrectionEM, double & absorberCorrectionHAD
-      )
-{
-   double absorberThickness_Br = 34.5 + 9; //mm
-
-   double absorberRadLength_Br = 0.561 * 10;
-   double absorberIntLength_Br = 17.59 * 10;
-
-   double layerX0   = absorberThickness_Br / absorberRadLength_Br;
-   double layerLdaI = absorberThickness_Br / absorberIntLength_Br;
-
-   nCellInteractionLengths = layerLdaI;
-   nCellRadiationLengths   = layerX0  ;
-
-   return;
-}
-
-/*****************************************************************************/ 
-double runPandora::getEnergyWeight(int subDet, int layer, int showerType)
-{
-   double weight = 1.;
-
-   //std::cout << "runPandora::getEnergyWeight: "
-   //   << ", subDet: " << subDet << ", layer: " << layer
-   //   << "showerType: " << showerType
-   //   << std::endl;
-
-   if (showerType == EM)
-      switch (subDet) {
-         case D_HGCEE :
-            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE","energyWeight_EM_EE");
-            break;
-         case D_HGCHEF:
-            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEF","energyWeight_EM_HEF");
-            break;
-         case D_HGCHEB:
-            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEB","energyWeight_EM_HEB");
-            break;
-         default :
-            break;
-      }
-   else 
-      switch (subDet) {
-         case D_HGCEE :
-            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE","energyWeight_Had_EE");
-            break;
-         case D_HGCHEF:
-            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEF","energyWeight_Had_HEF");
-            break;
-         case D_HGCHEB:
-            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEB","energyWeight_Had_HEB");
-            break;
-         default :
-            break;
-      }
-
-   //std::cout << "weight: " << weight << std::endl;
-  
-   return weight;
-}
-
 
 // ------------ method called once each job just after ending the event loop  ------------
 void 
