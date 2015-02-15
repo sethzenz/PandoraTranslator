@@ -8,9 +8,18 @@
 
     <!-- PLUGIN SETTINGS -->
     <HadronicEnergyCorrectionPlugins>CleanClusters ScaleHotHadrons</HadronicEnergyCorrectionPlugins>
-    <EmShowerPlugin>LCEmShowerId</EmShowerPlugin>
+    <EmShowerPlugin>
+      LCEmShowerId
+      <RmsCutEnergy>70.0</RmsCutEnergy>
+      <RmsLowECut>70.0</RmsLowECut>
+    </EmShowerPlugin>
     <PhotonPlugin>LCPhotonId</PhotonPlugin>
-    <ElectronPlugin>LCElectronId</ElectronPlugin>
+    <ElectronPlugin>
+      LCElectronId
+      <MaxProfileDiscrepancy>0.9</MaxProfileDiscrepancy>
+      <ProfileDiscrepancyForAutoId>0.9</ProfileDiscrepancyForAutoId>
+      <MaxResidualEOverP>0.3</MaxResidualEOverP>
+    </ElectronPlugin>
     <MuonPlugin>LCMuonId</MuonPlugin>
 
     <!-- ALGORITHM SETTINGS -->
