@@ -11,6 +11,9 @@
 #include "DataFormats/HcalDetId/interface/HcalSubdetector.h"
 #include "DataFormats/VertexReco/interface/VertexFwd.h"
 
+#include "DataFormats/JetReco/interface/GenJet.h"
+#include "DataFormats/Candidate/interface/Candidate.h"
+
 #include "Geometry/CaloGeometry/interface/CaloSubdetectorGeometry.h"
 #include "Geometry/CaloGeometry/interface/CaloGeometry.h"
 #include "Geometry/CaloGeometry/interface/CaloCellGeometry.h"
@@ -54,6 +57,11 @@
 #include <iostream>
 #include <cstdlib>
 
+#include <algorithm>
+#include <utility>
+#include <iterator> 
+#include <map> 
+
 using namespace edm;
 using namespace reco;
 using namespace pandora;  
@@ -94,7 +102,10 @@ runPandora::runPandora(const edm::ParameterSet& iConfig)
   inputTagHGCHEFrechit_ = iConfig.getParameter<InputTag>("HGCHEFrechitCollection");
   inputTagHGCHEBrechit_ = iConfig.getParameter<InputTag>("HGCHEBrechitCollection");
   inputTagGeneralTracks_ = iConfig.getParameter< std::vector < InputTag > >("generaltracks");
-  inputTagtPRecoTrackAsssociation_ = iConfig.getParameter<InputTag>("tPRecoTrackAsssociation");
+  //  inputTagtPRecoTrackAsssociation_ = iConfig.getParameter<InputTag>("tPRecoTrackAsssociation");
+  //  iEvent.getByLabel(inputTagtPRecoTrackAsssociation_, rectosimCollection);
+  //  const reco::RecoToSimCollection pRecoToSim = *(rectosimCollection.product());
+
   inputTagGenParticles_ = iConfig.getParameter<InputTag>("genParticles");
   m_pandoraSettingsXmlFile = iConfig.getParameter<edm::FileInPath>("inputconfigfile");
 
@@ -195,12 +206,14 @@ void runPandora::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
     throw cms::Exception( "MissingProduct", err.str());
   } 
 
-  prepareTrack(B_,pRecoToSim,iEvent,iSetup);
+  //  prepareTrack(B_,pRecoToSim,iEvent,iSetup);
+  prepareTrack(B_,iEvent,iSetup);
   preparemcParticle(genpart);
   prepareHits( ecalRecHitHandleEB,hcalRecHitHandleHBHE,HGCeeRecHitHandle,HGChefRecHitHandle,HGChebRecHitHandle,pv,iEvent,iSetup );
   //preparemcParticle(genpart); //put before prepareHits() to have mc info, for mip calib check
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::ProcessEvent(*m_pPandora));
-  preparePFO(iEvent,iSetup);
+  //  preparePFO(iEvent,iSetup);
+  preparePFO(iEvent,iSetup,HGCeeRecHitHandle,HGChefRecHitHandle,HGChebRecHitHandle,pv);
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::Reset(*m_pPandora));
 
 }
@@ -639,7 +652,8 @@ void runPandora::SetMultiLayerParameters(PandoraApi::Geometry::SubDetector::Para
   }
 }
 
-void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollection pRecoToSim, const edm::Event& iEvent, const edm::EventSetup& iSetup){ // function to setup tracks in an event for pandora
+//void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollection pRecoToSim, const edm::Event& iEvent, const edm::EventSetup& iSetup){ // function to setup tracks in an event for pandora
+void runPandora::prepareTrack( math::XYZVector B_, const edm::Event& iEvent, const edm::EventSetup& iSetup){ // function to setup tracks in an event for pandora
   PandoraApi::Track::Parameters trackParameters;
   //We need the speed of light
   double speedoflight = (CLHEP::c_light*CLHEP::mm)/CLHEP::ns;
@@ -851,7 +865,7 @@ void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollecti
 
       double mom = sqrt((theOutParticle_momentum.x()*theOutParticle_momentum.x()+theOutParticle_momentum.y()*theOutParticle_momentum.y()+theOutParticle_momentum.z()*theOutParticle_momentum.z()));
 
-      if(trackParameters.m_reachesCalorimeter.Get()>0 && mom>1. && track->quality(reco::TrackBase::tight) ){
+      if(trackParameters.m_reachesCalorimeter.Get()>0 && mom>2. && track->quality(reco::TrackBase::tight) ){ // SCZ change in hard coded pt cut from diff_runpandora
         canFormPfo = true;
         canFormClusterlessPfo = true;
       }
@@ -896,6 +910,12 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
 
   double speedoflight = (CLHEP::c_light/CLHEP::cm)/CLHEP::ns;
   std::cout<< speedoflight << " cm/ns" << std::endl;
+
+  sumallhitsEMenergyB4Clustering_[0] = 0;   // for - side
+  sumallhitsEMenergyB4Clustering_[1] = 0;   // for + side
+
+  sumallhitsHGCalenergyB4Clustering_[0] = 0;   // for - side
+  sumallhitsHGCalenergyB4Clustering_[1] = 0;   // for + side
 
   double sumCaloEnergy = 0.;
   double sumCaloEnergyEM = 0.;
@@ -1291,6 +1311,12 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
        simDir_sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrEE;
     }
 
+    if(z<0) sumallhitsEMenergyB4Clustering_[0] += energy* absorberCorrectionEM * m_EM_addCalibrEE;
+    if(z>=0) sumallhitsEMenergyB4Clustering_[1] += energy* absorberCorrectionEM * m_EM_addCalibrEE;
+
+    if(z<0) sumallhitsHGCalenergyB4Clustering_[0] += energy* absorberCorrectionEM * m_EM_addCalibrEE;
+    if(z>=0) sumallhitsHGCalenergyB4Clustering_[1] += energy* absorberCorrectionEM * m_EM_addCalibrEE;
+
     sumCaloECALEnergyEM  += energy  * absorberCorrectionEM * m_EM_addCalibrEE;
     sumCaloECALEnergyHAD += energy  * absorberCorrectionHAD * m_HAD_addCalibrEE;
     sumCaloECALEnergyHAD_unc += energy ;
@@ -1466,6 +1492,13 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     sumCaloEnergy += energy;
     sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrHEF;
     sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrHEF;
+
+    if(z<0) sumallhitsEMenergyB4Clustering_[0] += energy * absorberCorrectionEM * m_EM_addCalibrHEF;
+    if(z>=0) sumallhitsEMenergyB4Clustering_[1] += energy * absorberCorrectionEM * m_EM_addCalibrHEF;
+
+    if(z<0) sumallhitsHGCalenergyB4Clustering_[0] += energy * absorberCorrectionEM * m_EM_addCalibrHEF;
+    if(z>=0) sumallhitsHGCalenergyB4Clustering_[1] += energy * absorberCorrectionEM * m_EM_addCalibrHEF;
+
 //    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.5
 //             || std::fabs(hitEta+m_firstMCpartEta) < 0.5 )
 //          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.5) 
@@ -1635,6 +1668,13 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     sumCaloEnergy += energy;
     sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrHEB;
     sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrHEB;
+
+    if(z<0) sumallhitsEMenergyB4Clustering_[0] += energy * absorberCorrectionEM * m_EM_addCalibrHEB;
+    if(z>=0) sumallhitsEMenergyB4Clustering_[1] += energy * absorberCorrectionEM * m_EM_addCalibrHEB;
+
+    if(z<0) sumallhitsHGCalenergyB4Clustering_[0] += energy * absorberCorrectionEM * m_EM_addCalibrHEB;
+    if(z>=0) sumallhitsHGCalenergyB4Clustering_[1] += energy * absorberCorrectionEM * m_EM_addCalibrHEB;
+
 //    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.5
 //          || std::fabs(hitEta-m_firstMCpartEta) < 0.5 )
 //          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.5) 
@@ -1826,7 +1866,13 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
     
 }
 
-void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSetup){
+// void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSetup){
+void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSetup,edm::Handle<HGCRecHitCollection> 
+			    HGCeeRecHitHandle,
+			    edm::Handle<HGCRecHitCollection> HGChefRecHitHandle,
+			    edm::Handle<HGCRecHitCollection> HGChebRecHitHandle,
+			    reco::Vertex& pv){
+
     // PandoraPFANew/v00-09/include/Pandora/PandoraInternal.h
     // typedef std::set<ParticleFlowObject *> PfoList;  
     //     PandoraPFANew/v00-09/include/Api/PandoraContentApi.h
@@ -1866,11 +1912,201 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
     //   (*itPFO)->SetMomentum();
     // }
   
-  const pandora::PfoList *pPfoList = NULL;
+  memset(&EvtInfo,0x00,sizeof(EvtInfo));
+  memset(&GenInfo,0x00,sizeof(GenInfo));
+  memset(&GenJetInfo,0x00,sizeof(GenJetInfo));
+  memset(&PFOInfo,0x00,sizeof(PFOInfo));
+  memset(&FJOInfo,0x00,sizeof(FJOInfo));
+  memset(&GenFJOInfo,0x00,sizeof(GenFJOInfo));
+  memset(&HitInfo,0x00,sizeof(HitInfo));
+
+  //  const pandora::PfoList *pPfoList = NULL;
+  const pandora::PfoList *pPfoListB4Sorting = NULL;
+  pandora::PfoList pPfoList_tmp;
+
   // PANDORA_RETURN_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::GetCurrentPfoList(*m_pPandora, pPfoList));
 
-  const pandora::StatusCode statusCode(PandoraApi::GetCurrentPfoList(*m_pPandora, pPfoList));  
+  //  const pandora::StatusCode statusCode(PandoraApi::GetCurrentPfoList(*m_pPandora, pPfoList));  
+  const pandora::StatusCode statusCode(PandoraApi::GetCurrentPfoList(*m_pPandora, pPfoListB4Sorting));  
+
+  //Sort PFO by descending ET-- start --
+  int Npfob4sorting = 0;
+  std::vector< std::pair<double, int> > ValueByET;
+  std::vector<ParticleFlowObject *> pPfoV;
+  std::vector<ParticleFlowObject *> pPfoVsorted;
+  for (pandora::PfoList::const_iterator itPFO = pPfoListB4Sorting->begin(), itPFOEnd = pPfoListB4Sorting->end(); itPFO != itPFOEnd; ++itPFO){ 
+        double pT = 
+	  sqrt(((*itPFO)->GetMomentum()).GetX()*((*itPFO)->GetMomentum()).GetX()+((*itPFO)->GetMomentum()).GetY()*((*itPFO)->GetMomentum()).GetY()) ; 
+
+	ValueByET.push_back( std::pair<double, int>(pT, Npfob4sorting) );
+	pPfoV.push_back((ParticleFlowObject*)(*itPFO));
+	Npfob4sorting++;
+  }
+  sort(ValueByET.begin(), ValueByET.end());
+  reverse(ValueByET.begin(), ValueByET.end());
+
+  for(int inpfo = 0; inpfo < Npfob4sorting; inpfo++)
+    pPfoVsorted.push_back((ParticleFlowObject*)(pPfoV.at(ValueByET.at(inpfo).second)));
+  const std::vector<ParticleFlowObject *> *pPfoList = new std::vector<ParticleFlowObject *>(pPfoVsorted);
+  //Sort PFO by descending ET-- end --
+
   if (pandora::STATUS_CODE_SUCCESS != statusCode){throw pandora::StatusCodeException(statusCode);}
+
+  edm::Handle<std::vector<reco::GenParticle> > genpart;
+  iEvent.getByLabel(inputTagGenParticles_,genpart); //NS ADD
+  std::cout << " GENPART SIZE IS " << genpart->size() << std::endl;
+
+  //int found_recoIndx = -1;
+  Double_t ene_all_true = 0;
+
+  // Fast jet for genetic particles
+  std::vector<fastjet::PseudoJet> genfjInputs;
+  genfjInputs.clear();
+
+  for(size_t i = 0; i < genpart->size(); ++ i) { // 1 (gen-particle loop)
+
+    const GenParticle * pa = &(*genpart)[i];
+    GenInfo.ene[GenInfo.Size]    = pa->energy();
+
+    if (pa->numberOfDaughters()==0)  ene_all_true = ene_all_true+GenInfo.ene[GenInfo.Size];
+
+    GenInfo.charge[GenInfo.Size] = 0;
+    GenInfo.pT[GenInfo.Size]     = sqrt(pa->px()*pa->px()+pa->py()*pa->py());
+    GenInfo.pZ[GenInfo.Size]     = pa->pz();
+    GenInfo.eta[GenInfo.Size]    = 0.5 * log((sqrt(GenInfo.pT[GenInfo.Size]*GenInfo.pT[GenInfo.Size]+GenInfo.pZ[GenInfo.Size]*GenInfo.pZ[GenInfo.Size])+GenInfo.pZ[GenInfo.Size])/(sqrt(GenInfo.pT[GenInfo.Size]*GenInfo.pT[GenInfo.Size]+GenInfo.pZ[GenInfo.Size]*GenInfo.pZ[GenInfo.Size])-GenInfo.pZ[GenInfo.Size]));
+    TLorentzVector GenVector;
+    GenVector.SetPxPyPzE(pa->px(), pa->py(), pa->pz(), GenInfo.ene[GenInfo.Size]);
+    GenInfo.phi[GenInfo.Size]  = GenVector.Phi();       
+    GenInfo.eta_check[GenInfo.Size]   = pa->eta();
+    GenInfo.phi_check[GenInfo.Size]   = pa->phi();
+
+    GenInfo.pid[GenInfo.Size]    = pa->pdgId();
+    GenInfo.mass[GenInfo.Size]   = pa->mass();
+    GenInfo.status[GenInfo.Size]   = pa->status();
+
+
+    if(pa->pdgId()>0) GenInfo.charge[GenInfo.Size] = 1;
+    if(pa->pdgId()<0) GenInfo.charge[GenInfo.Size] = -1;
+    if(pa->pdgId()==22) GenInfo.charge[GenInfo.Size] = 0;
+    GenInfo.charge[GenInfo.Size] = pa->charge();
+
+    if(pa->status()==1)// stable particle (handed over to Geant4 for detector simulation)
+      genfjInputs.push_back(fastjet::PseudoJet(
+					       pa->px(), 
+					       pa->py(),
+					       pa->pz(),
+					       GenInfo.ene[GenInfo.Size] 
+					       ));
+    GenInfo.Size++;
+  } // 1  (gen-particle loop)
+  std::cout << " ENERGY ALL TRUE " << ene_all_true << std::endl;
+
+  edm::Handle<std::vector<reco::GenJet> > genjet;
+  iEvent.getByLabel("ak5GenJets",genjet); //Jacky ADD
+  std::cout << " GENJET SIZE IS " << genjet->size() << std::endl;
+  for(size_t i = 0; i < genjet->size(); ++ i) { // 1 (gen-particle loop)
+
+    const reco::GenJet * pa = &(*genjet)[i];
+
+    TLorentzVector GenVector;
+    GenVector.SetPtEtaPhiM(pa->pt(), pa->eta(), pa->phi(), pa->mass());
+
+    //GenJetInfo.ene[GenJetInfo.Size]    = GenVector.Energy();
+    GenJetInfo.ene[GenJetInfo.Size]    = pa->energy();
+    GenJetInfo.pT[GenJetInfo.Size]     = pa->pt();
+    GenJetInfo.pZ[GenJetInfo.Size]     = GenVector.Pz();
+    GenJetInfo.eta[GenJetInfo.Size]    = pa->eta();
+    GenJetInfo.phi[GenJetInfo.Size]    = pa->phi();       
+
+    GenJetInfo.pid[GenJetInfo.Size]    = pa->pdgId();
+    GenJetInfo.mass[GenJetInfo.Size]   = pa->mass();
+
+    // get all constituents
+    std::vector<const GenParticle*> theJetConstituents = pa->getGenConstituents();
+    GenJetInfo.Nconstituents[GenJetInfo.Size]   = theJetConstituents.size();
+
+    double EMene = 0.;
+    double ChargedHadene = 0.;
+    double NeutralHadene = 0.;
+    for( std::vector<const GenParticle*>::const_iterator aCandidate = theJetConstituents.begin();
+	 aCandidate != theJetConstituents.end();
+	 ++aCandidate)
+      {
+	int pdgId = std::abs((*aCandidate)->pdgId());
+	const Candidate* theCandidate = static_cast<const Candidate*>(*aCandidate);
+	//filter nus
+	if ((pdgId>=11 && pdgId<=15) || (pdgId==22))// EM particle
+	  {
+	    EMene += theCandidate->energy(); 
+	  } else 
+	  {
+	    if(theCandidate->charge()==0){
+	      NeutralHadene += theCandidate->energy(); 
+	    }else{
+	      ChargedHadene += theCandidate->energy(); 
+	    }
+	  }
+      }
+    GenJetInfo.EMF[GenJetInfo.Size] = (EMene)/pa->energy();
+    GenJetInfo.CHF[GenJetInfo.Size] = (ChargedHadene)/pa->energy();
+    GenJetInfo.NHF[GenJetInfo.Size] = (NeutralHadene)/pa->energy();
+    //GenJetInfo.charge[GenJetInfo.Size] = pa->charge();
+    GenJetInfo.Size++;
+  } // 1  (gen-particle loop)
+
+  edm::Handle<std::vector<reco::GenJet> > genjet;
+  iEvent.getByLabel("ak5GenJets",genjet); //Jacky ADD
+  std::cout << " GENJET SIZE IS " << genjet->size() << std::endl;
+  for(size_t i = 0; i < genjet->size(); ++ i) { // 1 (gen-particle loop)
+
+    const reco::GenJet * pa = &(*genjet)[i];
+
+    TLorentzVector GenVector;
+    GenVector.SetPtEtaPhiM(pa->pt(), pa->eta(), pa->phi(), pa->mass());
+
+    //GenJetInfo.ene[GenJetInfo.Size]    = GenVector.Energy();
+    GenJetInfo.ene[GenJetInfo.Size]    = pa->energy();
+    GenJetInfo.pT[GenJetInfo.Size]     = pa->pt();
+    GenJetInfo.pZ[GenJetInfo.Size]     = GenVector.Pz();
+    GenJetInfo.eta[GenJetInfo.Size]    = pa->eta();
+    GenJetInfo.phi[GenJetInfo.Size]    = pa->phi();       
+
+    GenJetInfo.pid[GenJetInfo.Size]    = pa->pdgId();
+    GenJetInfo.mass[GenJetInfo.Size]   = pa->mass();
+
+    // get all constituents
+    std::vector<const GenParticle*> theJetConstituents = pa->getGenConstituents();
+    GenJetInfo.Nconstituents[GenJetInfo.Size]   = theJetConstituents.size();
+
+    double EMene = 0.;
+    double ChargedHadene = 0.;
+    double NeutralHadene = 0.;
+    for( std::vector<const GenParticle*>::const_iterator aCandidate = theJetConstituents.begin();
+	 aCandidate != theJetConstituents.end();
+	 ++aCandidate)
+      {
+	int pdgId = std::abs((*aCandidate)->pdgId());
+	const Candidate* theCandidate = static_cast<const Candidate*>(*aCandidate);
+	//filter nus
+	if ((pdgId>=11 && pdgId<=15) || (pdgId==22))// EM particle
+	  {
+	    EMene += theCandidate->energy(); 
+	  } else 
+	  {
+	    if(theCandidate->charge()==0){
+	      NeutralHadene += theCandidate->energy(); 
+	    }else{
+	      ChargedHadene += theCandidate->energy(); 
+	    }
+	  }
+      }
+    GenJetInfo.EMF[GenJetInfo.Size] = (EMene)/pa->energy();
+    GenJetInfo.CHF[GenJetInfo.Size] = (ChargedHadene)/pa->energy();
+    GenJetInfo.NHF[GenJetInfo.Size] = (NeutralHadene)/pa->energy();
+    //GenJetInfo.charge[GenJetInfo.Size] = pa->charge();
+    GenJetInfo.Size++;
+  } // 1  (gen-particle loop)
+
 
   edm::Handle<std::vector<reco::GenParticle> > genpart;
   iEvent.getByLabel(inputTagGenParticles_,genpart); //NS ADD
