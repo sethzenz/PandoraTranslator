@@ -1080,11 +1080,11 @@ void runPandora::ProcessRecHit(const CaloRecHit* rh, int isubdet, const CaloSubd
   caloHitParameters.m_cellSizeU     = 10.0 * (corner0 - corner1).GetMagnitude() ; 
   caloHitParameters.m_cellSizeV     = 10.0 * (corner0 - corner3).GetMagnitude() ; 
   caloHitParameters.m_cellThickness = 10.0 * (corner0 - corner4).GetMagnitude() ; 
- if(calib->m_id==subdet::EE){   
- for (unsigned int i=0; i<8; i++) { 
-   std::cout << "Corners " << i << ": x " << corners[i].x() << " y " << corners[i].y() << " z " << corners[i].z() << std::endl ; 
- }
- }
+
+// for (unsigned int i=0; i<8; i++) { 
+//   std::cout << "Corners " << i << ": x " << corners[i].x() << " y " << corners[i].y() << " z " << corners[i].z() << std::endl ; 
+// }
+
   // Position is average of all eight corners, convert from cm to mm
   double x = 0.0, y = 0.0, z = 0.0 ; 
   double xf = 0.0, yf = 0.0, zf = 0.0 ; 
@@ -1353,6 +1353,14 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
   Double_t found_energy = -1;
   Double_t ene_all_true = 0;
 
+  //vars for histograms (only filled for i==0 in genparticle loop)
+  double _sumPFOEnergy(0.);
+  double sumClustEMEcalE(0.); //PFO cluster energy in Ecal
+  double sumClustEMHcalE(0.); //PFO cluster energy in Hcal
+  double sumClustHADEcalE(0.); //PFO cluster energy in Ecal
+  double sumClustHADHcalE(0.); //PFO cluster energy in Hcal
+  int sumPFOs(0);
+  
   for(size_t i = 0; i < genpart->size(); ++ i) { // 1 
           
     const GenParticle * pa = &(*genpart)[i];
@@ -1383,7 +1391,7 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
  
       nbPFOs = 0;
       for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(), itPFOEnd = pPfoList->end(); itPFO != itPFOEnd; ++itPFO){ // 4
-        nbPFOs=nbPFOs+1;
+        nbPFOs++;
         double charge = (*itPFO)->GetCharge() ;
         double energy = (*itPFO)->GetEnergy();
         double pid    = (*itPFO)->GetParticleId();
@@ -1435,61 +1443,76 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
         }
         
      }
+
+      double clusterEMenergyECAL  = 0.;
+      double clusterEMenergyHCAL  = 0.;
+      double clusterHADenergyECAL = 0.;
+      double clusterHADenergyHCAL = 0.;
+               
+      const pandora::ClusterAddressList clusterAddressList((*itPFO)->GetClusterAddressList());
+      for (pandora::ClusterAddressList::const_iterator itCluster = clusterAddressList.begin(), itClusterEnd = clusterAddressList.end();
+          itCluster != itClusterEnd; ++itCluster)
+      {
+         const unsigned int nHitsInCluster((*itCluster).size());
+            
+         for (unsigned int iHit = 0; iHit < nHitsInCluster; ++iHit)
+         {
+            const HGCRecHit *hgcHit = (HGCRecHit*)((*itCluster)[iHit]);                
+            const DetId& detid = hgcHit->id();
+            if (!detid)
+               continue;
       
-
+            ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
+            if (thesubdet == 3) {
+              int layer = (int) ((HGCEEDetId)(detid)).layer() ;
+                clusterEMenergyECAL += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
+                clusterHADenergyECAL += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
+            }
+            else if (thesubdet == 4) {
+              int layer = (int) ((HGCHEDetId)(detid)).layer() ;
+              clusterEMenergyHCAL += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetEMCalib(layer);
+                clusterHADenergyHCAL += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
+            }
+            else if (thesubdet == 5) {
+              int layer = (int) ((HGCHEDetId)(detid)).layer() ;
+              clusterEMenergyHCAL += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetEMCalib(layer);
+                clusterHADenergyHCAL += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
+            }
+            else {
+            }
+      
+         }
+      }
+      
+      ene_em = clusterEMenergyECAL + clusterEMenergyHCAL;
+      ene_had = clusterHADenergyECAL + clusterHADenergyHCAL;
     
-        //Hieu, 22.08.14
-        //FIXME: for the moment this is a fast fix, should be merged with similar part below
-        //       or simply remove that part (just for a few control histograms)
-        double clusterEMenergy  = 0.;
-        double clusterHADenergy = 0.;
-                 
-        const pandora::ClusterAddressList clusterAddressList((*itPFO)->GetClusterAddressList());
-        for (pandora::ClusterAddressList::const_iterator itCluster = clusterAddressList.begin(), itClusterEnd = clusterAddressList.end();
-            itCluster != itClusterEnd; ++itCluster)
-        {
-           const unsigned int nHitsInCluster((*itCluster).size());
-              
-           for (unsigned int iHit = 0; iHit < nHitsInCluster; ++iHit)
-           {
-              const HGCRecHit *hgcHit = (HGCRecHit*)((*itCluster)[iHit]);
-              //const HGCEEDetId& detidEE = hgcHit->id();
-                  
-              const DetId& detid = hgcHit->id();
-              if (!detid)
-                 continue;
-        
-              //const HGCHEDetId& detidHE = hgcHit->id();
-           
-              ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
-              //ForwardSubdetector thesubdetHE = (ForwardSubdetector)detidHE.subdetId();
-              if (thesubdet == 3) {
-                int layer = (int) ((HGCEEDetId)(detid)).layer() ;
-                  clusterEMenergy += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
-                  clusterHADenergy += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
-              }
-              else if (thesubdet == 4) {
-                int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-                clusterEMenergy += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetEMCalib(layer);
-                  clusterHADenergy += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
-              }
-              else if (thesubdet == 5) {
-                int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-                clusterEMenergy += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetEMCalib(layer);
-                  clusterHADenergy += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
-              }
-              else {
-              }
-       
-           }
-        }
-        
-        ene_em = clusterEMenergy;
-        ene_had = clusterHADenergy;
+    if(i==0){
+      sumPFOs++;
+      sumClustEMEcalE += clusterEMenergyECAL;
+      sumClustEMHcalE += clusterEMenergyHCAL;
+      sumClustHADEcalE += clusterHADenergyECAL;
+      sumClustHADHcalE += clusterHADenergyECAL;
+      _sumPFOEnergy += energy;
 
+      std::cout << "Particle Id: " << pid << std::endl;
+      std::cout << "Energy: " << energy << std::endl;
+      
+      const pandora::TrackAddressList trackAddressList((*itPFO)->GetTrackAddressList());
+      PANDORA_MONITORING_API(VisualizeTracks( trackAddressList  , "currentTrackList", AUTO, false, true  ) );    
+      PANDORA_MONITORING_API(ViewEvent() );
+      for (pandora::TrackAddressList::const_iterator itTrack = trackAddressList.begin(), itTrackEnd = trackAddressList.end();itTrack != itTrackEnd; ++itTrack){
+        reco::Track * track =  (reco::Track *) (*itTrack);
+        std::cout<< "Track from pfo charge " << track->charge() << std::endl;
+        std::cout<< "Track from pfo transverse momentum " << track->pt() << std::endl;
+      }
+      
+      std::cout << " ENERGY  is  " << _sumPFOEnergy << std::endl;
+    }
+    
     const TrackList &trackList((*itPFO)->GetTrackList());
         TrackVector trackVector(trackList.begin(), trackList.end());
-
+        
     ene_track=0; 
 
      for (TrackVector::const_iterator trackIter = trackVector.begin(), trackIterEnd = trackVector.end();
@@ -1540,126 +1563,12 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
  } // 1
 
   std::cout << " ENERGY ALL TRUE " << ene_all_true << std::endl;
-
-  double _sumPFOEnergy(0.);
-  double sumClustEMEcalE(0.); //PFO cluster energy in Ecal
-  double sumClustEMHcalE(0.); //PFO cluster energy in Hcal
-  double sumClustHADEcalE(0.); //PFO cluster energy in Ecal
-  double sumClustHADHcalE(0.); //PFO cluster energy in Hcal
-
-  double ene_all = 0;
-  int nbPFOs(0);
-  for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(), itPFOEnd = pPfoList->end(); itPFO != itPFOEnd; ++itPFO){
-    nbPFOs++;
-    std::cout << "Particle Id: " << (*itPFO)->GetParticleId() << std::endl;
-    //std::cout << "Charge: " << (*itPFO)->GetCharge() << std::endl;
-    //std::cout << "Mass: " << (*itPFO)->GetMass() << std::endl;
-    std::cout << "Energy: " << (*itPFO)->GetEnergy() << std::endl;
-    _sumPFOEnergy += (*itPFO)->GetEnergy();
-
-    ene_all = ene_all + (*itPFO)->GetEnergy() ;
-
-    //For the cluster we will deal with it after the finishing of the calo hit
-    const pandora::ClusterAddressList clusterAddressList((*itPFO)->GetClusterAddressList());
-    const pandora::TrackAddressList trackAddressList((*itPFO)->GetTrackAddressList());
-    const pandora::TrackList trackList((*itPFO)->GetTrackList());
-   
-    //TGClient *gclient  = NULL;
-    //PandoraMonitoringApi::VisualizeTracks(  &trackList  , "currentTrackList", AUTO);
-    //PANDORA_MONITORING_API(ViewEvent() );
-
-    PANDORA_MONITORING_API(VisualizeTracks(  trackAddressList  , "currentTrackList", AUTO, false, true  ) );    
-    PANDORA_MONITORING_API(ViewEvent() );
-
-    for (pandora::ClusterAddressList::const_iterator itCluster = clusterAddressList.begin(), itClusterEnd = clusterAddressList.end(); itCluster != itClusterEnd; ++itCluster){
-      const unsigned int nHitsInCluster((*itCluster).size());
-      
-      //const pandora::CaloHitAddressList &caloHitAddressList(*itCluster);
-      //EcalRecHit * hgcrh = NULL;
-      //HBHERecHit * hrh = NULL;
-
-      
-      //int nbNonEHcalHit = 0;
-      for (unsigned int iHit = 0; iHit < nHitsInCluster; ++iHit)
-      {
-
-         const HGCRecHit *hgcHit = (HGCRecHit*)((*itCluster)[iHit]);
-         //const HGCEEDetId& detidEE = hgcHit->id();
-
-         const DetId& detid = hgcHit->id();
-         if (!detid)
-            continue;
-
-         //const HGCHEDetId& detidHE = hgcHit->id();
-
-         ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
-         //ForwardSubdetector thesubdetHE = (ForwardSubdetector)detidHE.subdetId();
-         if (thesubdet == 3) {
-           int layer = (int) ((HGCEEDetId)(detid)).layer() ;
-             sumClustEMEcalE += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
-             sumClustHADEcalE += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
-         }
-         else if (thesubdet == 4) {
-           int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-           sumClustEMHcalE += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetEMCalib(layer);
-             sumClustHADHcalE += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
-         }
-         else if (thesubdet == 5) {
-           int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-           sumClustEMHcalE += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetEMCalib(layer);
-             sumClustHADHcalE += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
-         }
-         else {
-         }
-
-      }
-
-//      for (pandora::CaloHitAddressList::const_iterator hIter = caloHitAddressList.begin(), hIterEnd = caloHitAddressList.end(); hIter != hIterEnd; ++hIter){    
-//    pandora::CaloHit * ch = (pandora::CaloHit *) (*hIter);
-//    EcalRecHit * hgcrh = NULL;
-//    HBHERecHit * hrh = NULL;
-//
-//    if (ch->GetHitType() ==  pandora::ECAL) { 
-//      hgcrh = (EcalRecHit *) (*hIter);
-//      std::cout << "EcalRecHit energy " << hgcrh->energy() <<  std::endl;
-//     sumClustEcalE += hgcrh->energy();
-//    } else if (ch->GetHitType() ==  pandora::HCAL) {  
-//      hrh = (HBHERecHit *) (*hIter); 
-//      std::cout << "HcalRecHit energy " << hrh->energy() <<  std::endl;          
-//     sumClustHcalE += hrh->energy();
-//    }
-//    else {
-//      std::cout << " No ECAL or HCAL??? What is this? " << ch->GetHitType() << std::endl;
-//      nbNonEHcalHit++;
-//    }
-    
-//      }
-//      std::cout << "nbNonEHcalHit: " << nbNonEHcalHit << std::endl;
- 
-
-      // for (unsigned int iHit = 0; iHit < nHitsInCluster; ++iHit){
-      //     EVENT::CalorimeterHit *pCalorimeterHit = (CalorimeterHit*)((*itCluster)[iHit]);
-      // }
- 
-    }
-
-
-    for (pandora::TrackAddressList::const_iterator itTrack = trackAddressList.begin(), itTrackEnd = trackAddressList.end();itTrack != itTrackEnd; ++itTrack){
-      reco::Track * track =  (reco::Track *) (*itTrack);
-      std::cout<< "Track from pfo charge " << track->charge() << std::endl;
-      std::cout<< "Track from pfo transverse momentum " << track->pt() << std::endl;
-
-    }
-
-  std::cout << " ENERGY  is  " << ene_all << std::endl;
-
-  }
+  
 
   h2_EM_hcalEecalE->Fill(sumClustEMEcalE,sumClustEMHcalE);
   h2_Had_hcalEecalE->Fill(sumClustHADEcalE,sumClustHADHcalE);
   h_sumPfoE->Fill(_sumPFOEnergy);
   h_nbPFOs->Fill(nbPFOs);
-
     
 }
 
