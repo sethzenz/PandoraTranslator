@@ -121,6 +121,7 @@ void HGCalTrackCollectionProducer::beginLuminosityBlock(const edm::LuminosityBlo
       float Radius(it->second);
       _minusSurface[i].push_back(ReferenceCountingPointer<BoundDisk> ( new BoundDisk( Surface::PositionType(0,0,-Z), rot, new SimpleDiskBounds( 0, Radius, -0.001, 0.001))));
       _plusSurface[i].push_back(ReferenceCountingPointer<BoundDisk> ( new BoundDisk( Surface::PositionType(0,0,+Z), rot, new SimpleDiskBounds( 0, Radius, -0.001, 0.001))));
+      break; // quick hack to take only innermost layer 
     }    
   }  
 }
@@ -152,7 +153,7 @@ void HGCalTrackCollectionProducer::produce(edm::Event & evt, const edm::EventSet
 	if( piStateAtSurface.isValid() ) {
 	  if (_debug) std::cout << "Extrapolation is valid!" << std::endl;
 	  GlobalPoint pt = piStateAtSurface.globalPosition();
-	  if (_debug) std::cout << "(x,y,z)=(" << pt.x() << ", " << pt.y() << ", " << pt.z() << std::endl;
+	  if (_debug) std::cout << "(x,y,z)=(" << pt.x() << ", " << pt.y() << ", " << pt.z() << ")" << std::endl;
 	  outputInHGCal->push_back(*tracks[i]);
 	} else {
 	  if (_debug) std::cout << "Extrapolation is NOT valid!" << std::endl;
