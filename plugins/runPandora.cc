@@ -60,9 +60,6 @@ using namespace pandora;
 using namespace lc_content;
 using namespace cms_content;
 
-enum { D_HGCEE, D_HGCHEF, D_HGCHEB };
-enum { EM, HAD };
-
 namespace cms_content {
   pandora::StatusCode RegisterBasicPlugins(const pandora::Pandora &pandora)
   {
@@ -336,9 +333,9 @@ void runPandora::readCalibrParameterFile()
       else if (paraName=="HCalToHadGeVBarrel"    ) {m_calibHB->m_CalToHADGeV     = paraValue;}
 
       else if (paraName=="MuonToMip"             ) {m_muonToMip                 = paraValue;}
-	  else continue;
-	  
-	  std::cout << paraValue << std::endl;
+      else continue;
+      
+      std::cout << paraValue << std::endl;
    }
 
    calibrParFile.close();
@@ -941,8 +938,8 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   int nNotFoundEB = 0, nCaloHitsEB = 0;
   for(unsigned i=0; i<ecalRecHitHandleEB->size(); i++) {
     continue;
-	ProcessRecHit(&(*ecalRecHitHandleEB)[i], 1, *ecalBarrelGeometry, m_calibEB, nCaloHitsEB, nNotFoundEB, pv,
-	              pandora::ECAL, pandora::BARREL, caloHitParameters);
+    ProcessRecHit(&(*ecalRecHitHandleEB)[i], 1, *ecalBarrelGeometry, m_calibEB, nCaloHitsEB, nNotFoundEB, pv,
+                  pandora::ECAL, pandora::BARREL, caloHitParameters);
     
   }    
 
@@ -953,7 +950,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   for(unsigned i=0; i<hcalRecHitHandleHBHE->size(); i++) {
     continue;       
     ProcessRecHit(&(*hcalRecHitHandleHBHE)[i], 1, *hcalBarrelGeometry, m_calibHB, nCaloHitsHB, nNotFoundHB, pv,
-	              pandora::HCAL, pandora::BARREL, caloHitParameters);
+                  pandora::HCAL, pandora::BARREL, caloHitParameters);
   }
 
   //
@@ -963,7 +960,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   int nNotFoundEE = 0, nCaloHitsEE = 0 ; 
   for(unsigned i=0; i<HGCeeRecHitHandle->size(); i++) {
     ProcessRecHit(&(*HGCeeRecHitHandle)[i], 3, HGCEEGeometry, m_calibEE, nCaloHitsEE, nNotFoundEE, pv,
-	              pandora::ECAL, pandora::ENDCAP, caloHitParameters);
+                  pandora::ECAL, pandora::ENDCAP, caloHitParameters);
   }
 
 
@@ -973,7 +970,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   int nNotFoundHEF = 0, nCaloHitsHEF = 0 ; 
   for(unsigned i=0; i<HGChefRecHitHandle->size(); i++) {
     ProcessRecHit(&(*HGChefRecHitHandle)[i], 4, HGCHEFGeometry, m_calibHEF, nCaloHitsHEF, nNotFoundHEF, pv,
-	              pandora::HCAL, pandora::ENDCAP, caloHitParameters);
+                  pandora::HCAL, pandora::ENDCAP, caloHitParameters);
   }
 
 
@@ -983,7 +980,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   int nNotFoundHEB = 0, nCaloHitsHEB = 0 ; 
   for(unsigned i=0; i<HGChebRecHitHandle->size(); i++) {
     ProcessRecHit(&(*HGChebRecHitHandle)[i], 5, HGCHEBGeometry, m_calibHEB, nCaloHitsHEB, nNotFoundHEB, pv,
-	              pandora::HCAL, pandora::ENDCAP, caloHitParameters);
+                  pandora::HCAL, pandora::ENDCAP, caloHitParameters);
   }
 
   h_sumCaloE->Fill(sumCaloEnergy);
@@ -1006,12 +1003,12 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
 
   for (int ilay=0; ilay<100; ilay++) {
      int ibin = ilay+1;
-	 
+     
      h_hitEperLayer_EM[subdet::EE] ->SetBinContent(ibin,m_hitEperLayer_EM[subdet::EE] [ilay]+ h_hitEperLayer_EM[subdet::EE] ->GetBinContent(ibin));
      h_hitEperLayer_EM[subdet::HEF]->SetBinContent(ibin,m_hitEperLayer_EM[subdet::HEF][ilay]+ h_hitEperLayer_EM[subdet::HEF]->GetBinContent(ibin));
      h_hitEperLayer_EM[subdet::HEB]->SetBinContent(ibin,m_hitEperLayer_EM[subdet::HEB][ilay]+ h_hitEperLayer_EM[subdet::HEB]->GetBinContent(ibin));
-	 
-	 h_hitEperLayer_HAD[subdet::EE] ->SetBinContent(ibin,m_hitEperLayer_HAD[subdet::EE] [ilay]+ h_hitEperLayer_HAD[subdet::EE] ->GetBinContent(ibin));
+     
+     h_hitEperLayer_HAD[subdet::EE] ->SetBinContent(ibin,m_hitEperLayer_HAD[subdet::EE] [ilay]+ h_hitEperLayer_HAD[subdet::EE] ->GetBinContent(ibin));
      h_hitEperLayer_HAD[subdet::HEF]->SetBinContent(ibin,m_hitEperLayer_HAD[subdet::HEF][ilay]+ h_hitEperLayer_HAD[subdet::HEF]->GetBinContent(ibin));
      h_hitEperLayer_HAD[subdet::HEB]->SetBinContent(ibin,m_hitEperLayer_HAD[subdet::HEB][ilay]+ h_hitEperLayer_HAD[subdet::HEB]->GetBinContent(ibin));
   }
@@ -1046,7 +1043,7 @@ void runPandora::ProcessRecHit(const CaloRecHit* rh, int isubdet, const CaloSubd
   const CaloCellGeometry *thisCell = geom.getGeometry(detid);
   if(!thisCell) {
       LogError("runPandoraPrepareHits") << "warning detid " << detid.rawId() << " not found in geometry" << std::endl;
-	  nNotFound++;
+      nNotFound++;
       return;
   }
   
@@ -1059,16 +1056,16 @@ void runPandora::ProcessRecHit(const CaloRecHit* rh, int isubdet, const CaloSubd
   if(hitRegion==pandora::BARREL){
     const CaloCellGeometry::CornersVec& cornersC = thisCell->getCorners();
     assert( cornersC.size() == 8 );
-	for(unsigned int i=0; i<8; i++){
-	  corners[i] = cornersC[i];
-	}
+    for(unsigned int i=0; i<8; i++){
+      corners[i] = cornersC[i];
+    }
   }
   else if(hitRegion==pandora::ENDCAP){
     const HGCalGeometry::CornersVec cornersH = ( std::move( (dynamic_cast< const HGCalGeometry& > (geom) ).getCorners( detid ) ) );
     assert( cornersH.size() == 8 );
-	for(unsigned int i=0; i<8; i++){
-	  corners[i] = cornersH[i];
-	}
+    for(unsigned int i=0; i<8; i++){
+      corners[i] = cornersH[i];
+    }
   }
   assert( corners.size() == 8 );
 
@@ -1173,11 +1170,11 @@ void runPandora::ProcessRecHit(const CaloRecHit* rh, int isubdet, const CaloSubd
   if(hitType==pandora::ECAL){
     sumCaloECALEnergyEM  += energy  ;//* absorberCorrectionEM;
     sumCaloECALEnergyHAD += energy  ;//* absorberCorrectionHAD;
-	if(hitRegion==pandora::ENDCAP) sumCaloECALEnergyHAD_unc += energy ;
+    if(hitRegion==pandora::ENDCAP) sumCaloECALEnergyHAD_unc += energy ;
   }
   else if(hitType==pandora::HCAL){
     sumCaloHCALEnergyEM  += energy  ;//* absorberCorrectionEM;
-    sumCaloHCALEnergyHAD += energy  ;//* absorberCorrectionHAD;	  
+    sumCaloHCALEnergyHAD += energy  ;//* absorberCorrectionHAD;      
   }
  
   if(hitRegion==pandora::BARREL){
@@ -1189,8 +1186,8 @@ void runPandora::ProcessRecHit(const CaloRecHit* rh, int isubdet, const CaloSubd
     caloHitParameters.m_layer = layer;
     caloHitParameters.m_nCellRadiationLengths = calib->nCellRadiationLengths[layer];
     caloHitParameters.m_nCellInteractionLengths = calib->nCellInteractionLengths[layer]; // 6.;
-	m_hitEperLayer_EM[calib->m_id][layer] += caloHitParameters.m_electromagneticEnergy.Get();
-	m_hitEperLayer_HAD[calib->m_id][layer] += caloHitParameters.m_hadronicEnergy.Get();
+    m_hitEperLayer_EM[calib->m_id][layer] += caloHitParameters.m_electromagneticEnergy.Get();
+    m_hitEperLayer_HAD[calib->m_id][layer] += caloHitParameters.m_hadronicEnergy.Get();
   }
   caloHitParameters.m_isDigital = false;
   caloHitParameters.m_isInOuterSamplingLayer = false;
@@ -1304,44 +1301,44 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
 }
 
 void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSetup){
-	// PandoraPFANew/v00-09/include/Pandora/PandoraInternal.h
-	// typedef std::set<ParticleFlowObject *> PfoList;  
-	// 	PandoraPFANew/v00-09/include/Api/PandoraContentApi.h
-    	//	class ParticleFlowObject
-    	//	{
-    	//	public:
-    	//	    /**
-    	//	     *  @brief  Parameters class
-    	//	     */
-    	//	    class Parameters
-    	//	    {
-    	//	    public:
-    	//	        pandora::InputInt               m_particleId;       ///< The particle flow object id (PDG code)
-    	//	        pandora::InputInt               m_charge;           ///< The particle flow object charge
-    	//	        pandora::InputFloat             m_mass;             ///< The particle flow object mass
-    	//	        pandora::InputFloat             m_energy;           ///< The particle flow object energy
-    	//	        pandora::InputCartesianVector   m_momentum;         ///< The particle flow object momentum
-    	//	        pandora::ClusterList            m_clusterList;      ///< The clusters in the particle flow object
-    	//	        pandora::TrackList              m_trackList;        ///< The tracks in the particle flow object
-    	//	    };
-    	//	    /**
-    	//	     *  @brief  Create a particle flow object
-    	//	     * 
-    	//	     *  @param  algorithm the algorithm creating the particle flow object
-    	//	     *  @param  particleFlowObjectParameters the particle flow object parameters
-    	//	     */
-    	//	    static pandora::StatusCode Create(const pandora::Algorithm &algorithm, const Parameters &parameters);
-    	//	};
-    	//	typedef ParticleFlowObject::Parameters ParticleFlowObjectParameters;
+    // PandoraPFANew/v00-09/include/Pandora/PandoraInternal.h
+    // typedef std::set<ParticleFlowObject *> PfoList;  
+    //     PandoraPFANew/v00-09/include/Api/PandoraContentApi.h
+        //    class ParticleFlowObject
+        //    {
+        //    public:
+        //        /**
+        //         *  @brief  Parameters class
+        //         */
+        //        class Parameters
+        //        {
+        //        public:
+        //            pandora::InputInt               m_particleId;       ///< The particle flow object id (PDG code)
+        //            pandora::InputInt               m_charge;           ///< The particle flow object charge
+        //            pandora::InputFloat             m_mass;             ///< The particle flow object mass
+        //            pandora::InputFloat             m_energy;           ///< The particle flow object energy
+        //            pandora::InputCartesianVector   m_momentum;         ///< The particle flow object momentum
+        //            pandora::ClusterList            m_clusterList;      ///< The clusters in the particle flow object
+        //            pandora::TrackList              m_trackList;        ///< The tracks in the particle flow object
+        //        };
+        //        /**
+        //         *  @brief  Create a particle flow object
+        //         * 
+        //         *  @param  algorithm the algorithm creating the particle flow object
+        //         *  @param  particleFlowObjectParameters the particle flow object parameters
+        //         */
+        //        static pandora::StatusCode Create(const pandora::Algorithm &algorithm, const Parameters &parameters);
+        //    };
+        //    typedef ParticleFlowObject::Parameters ParticleFlowObjectParameters;
 
-	// const pandora::CartesianVector momentum(1., 2., 3.);
-	// for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(), itPFOEnd = pPfoList->end(); itPFO != itPFOEnd; ++itPFO){
-	//   (*itPFO)->SetParticleId();
-	//   (*itPFO)->SetCharge();
-	//   (*itPFO)->SetMass();
-	//   (*itPFO)->SetEnergy();
-	//   (*itPFO)->SetMomentum();
-	// }
+    // const pandora::CartesianVector momentum(1., 2., 3.);
+    // for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(), itPFOEnd = pPfoList->end(); itPFO != itPFOEnd; ++itPFO){
+    //   (*itPFO)->SetParticleId();
+    //   (*itPFO)->SetCharge();
+    //   (*itPFO)->SetMass();
+    //   (*itPFO)->SetEnergy();
+    //   (*itPFO)->SetMomentum();
+    // }
   
   const pandora::PfoList *pPfoList = NULL;
   // PANDORA_RETURN_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::GetCurrentPfoList(*m_pPandora, pPfoList));
@@ -1420,7 +1417,7 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
         Cluster *pCluster = (*clusterIter);
 //        ene_em  = pCluster->GetElectromagneticEnergy();
 //        ene_had = pCluster->GetHadronicEnergy();
-//	 std::cout << " clusterEMenergy INI " << pCluster->GetElectromagneticEnergy()  << std::endl;  
+//     std::cout << " clusterEMenergy INI " << pCluster->GetElectromagneticEnergy()  << std::endl;  
 // hits
         const OrderedCaloHitList &orderedCaloHitList(pCluster->GetOrderedCaloHitList());
         CaloHitList pCaloHitList;
@@ -1468,18 +1465,18 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
               //ForwardSubdetector thesubdetHE = (ForwardSubdetector)detidHE.subdetId();
               if (thesubdet == 3) {
                 int layer = (int) ((HGCEEDetId)(detid)).layer() ;
-	  		    clusterEMenergy += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
-	  		    clusterHADenergy += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
+                  clusterEMenergy += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
+                  clusterHADenergy += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
               }
               else if (thesubdet == 4) {
                 int layer = (int) ((HGCHEDetId)(detid)).layer() ;
                 clusterEMenergy += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetEMCalib(layer);
-	  		    clusterHADenergy += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
+                  clusterHADenergy += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
               }
               else if (thesubdet == 5) {
                 int layer = (int) ((HGCHEDetId)(detid)).layer() ;
                 clusterEMenergy += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetEMCalib(layer);
-	  		    clusterHADenergy += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
+                  clusterHADenergy += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
               }
               else {
               }
@@ -1490,10 +1487,10 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
         ene_em = clusterEMenergy;
         ene_had = clusterHADenergy;
 
-	const TrackList &trackList((*itPFO)->GetTrackList());
+    const TrackList &trackList((*itPFO)->GetTrackList());
         TrackVector trackVector(trackList.begin(), trackList.end());
 
-	ene_track=0; 
+    ene_track=0; 
 
      for (TrackVector::const_iterator trackIter = trackVector.begin(), trackIterEnd = trackVector.end();
         trackIter != trackIterEnd; ++trackIter)
@@ -1599,49 +1596,49 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
          //ForwardSubdetector thesubdetHE = (ForwardSubdetector)detidHE.subdetId();
          if (thesubdet == 3) {
            int layer = (int) ((HGCEEDetId)(detid)).layer() ;
-	  	   sumClustEMEcalE += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
-	  	   sumClustHADEcalE += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
+             sumClustEMEcalE += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
+             sumClustHADEcalE += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
          }
          else if (thesubdet == 4) {
            int layer = (int) ((HGCHEDetId)(detid)).layer() ;
            sumClustEMHcalE += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetEMCalib(layer);
-	  	   sumClustHADHcalE += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
+             sumClustHADHcalE += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
          }
          else if (thesubdet == 5) {
            int layer = (int) ((HGCHEDetId)(detid)).layer() ;
            sumClustEMHcalE += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetEMCalib(layer);
-	  	   sumClustHADHcalE += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
+             sumClustHADHcalE += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
          }
          else {
          }
 
       }
 
-//      for (pandora::CaloHitAddressList::const_iterator hIter = caloHitAddressList.begin(), hIterEnd = caloHitAddressList.end(); hIter != hIterEnd; ++hIter){	
-//	pandora::CaloHit * ch = (pandora::CaloHit *) (*hIter);
-//	EcalRecHit * hgcrh = NULL;
-//	HBHERecHit * hrh = NULL;
+//      for (pandora::CaloHitAddressList::const_iterator hIter = caloHitAddressList.begin(), hIterEnd = caloHitAddressList.end(); hIter != hIterEnd; ++hIter){    
+//    pandora::CaloHit * ch = (pandora::CaloHit *) (*hIter);
+//    EcalRecHit * hgcrh = NULL;
+//    HBHERecHit * hrh = NULL;
 //
-//	if (ch->GetHitType() ==  pandora::ECAL) { 
-//	  hgcrh = (EcalRecHit *) (*hIter);
-//	  std::cout << "EcalRecHit energy " << hgcrh->energy() <<  std::endl;
+//    if (ch->GetHitType() ==  pandora::ECAL) { 
+//      hgcrh = (EcalRecHit *) (*hIter);
+//      std::cout << "EcalRecHit energy " << hgcrh->energy() <<  std::endl;
 //     sumClustEcalE += hgcrh->energy();
-//	} else if (ch->GetHitType() ==  pandora::HCAL) {  
-//	  hrh = (HBHERecHit *) (*hIter); 
-//	  std::cout << "HcalRecHit energy " << hrh->energy() <<  std::endl;		  
+//    } else if (ch->GetHitType() ==  pandora::HCAL) {  
+//      hrh = (HBHERecHit *) (*hIter); 
+//      std::cout << "HcalRecHit energy " << hrh->energy() <<  std::endl;          
 //     sumClustHcalE += hrh->energy();
-//	}
-//	else {
-//	  std::cout << " No ECAL or HCAL??? What is this? " << ch->GetHitType() << std::endl;
+//    }
+//    else {
+//      std::cout << " No ECAL or HCAL??? What is this? " << ch->GetHitType() << std::endl;
 //      nbNonEHcalHit++;
-//	}
-	
+//    }
+    
 //      }
 //      std::cout << "nbNonEHcalHit: " << nbNonEHcalHit << std::endl;
  
 
       // for (unsigned int iHit = 0; iHit < nHitsInCluster; ++iHit){
-      // 	EVENT::CalorimeterHit *pCalorimeterHit = (CalorimeterHit*)((*itCluster)[iHit]);
+      //     EVENT::CalorimeterHit *pCalorimeterHit = (CalorimeterHit*)((*itCluster)[iHit]);
       // }
  
     }
@@ -1663,7 +1660,7 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
   h_sumPfoE->Fill(_sumPFOEnergy);
   h_nbPFOs->Fill(nbPFOs);
 
-	
+    
 }
 
 //Get the track siblings
