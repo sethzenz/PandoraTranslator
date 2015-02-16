@@ -21,6 +21,7 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <unordered_map>
 
 // user include files
 #include "FWCore/Framework/interface/Frameworkfwd.h"
@@ -43,14 +44,10 @@
 
 #include "Geometry/CaloGeometry/interface/CaloSubdetectorGeometry.h"
 
-#include "DataFormats/EcalRecHit/interface/EcalRecHit.h"
-#include "DataFormats/EcalRecHit/interface/EcalRecHitCollections.h"
+#include "DataFormats/ParticleFlowReco/interface/PFRecHit.h"
+#include "DataFormats/ParticleFlowReco/interface/PFRecHitFwd.h"
+
 #include "DataFormats/RecoCandidate/interface/TrackAssociation.h"
-
-#include "DataFormats/HcalRecHit/interface/HBHERecHit.h"
-#include "DataFormats/HcalRecHit/interface/HcalRecHitCollections.h"
-#include "DataFormats/HcalRecHit/interface/HcalRecHitFwd.h"
-
 #include "DataFormats/HGCRecHit/interface/HGCRecHitCollections.h"
 
 #include "DataFormats/VertexReco/interface/Vertex.h"
@@ -71,7 +68,6 @@
 //
 // class declaration
 //
-namespace reco {class PFRecHit;}
 class CalibCalo;
 
 // namespace pandora {class Pandora;}
@@ -89,16 +85,16 @@ public:
   static pandora::Pandora        *m_pPandora;
 
   void prepareTrack(math::XYZVector B_,const reco::RecoToSimCollection pRecoToSim,const edm::Event& iEvent, const edm::EventSetup& iSetup);
-  void prepareHits(edm::Handle<EcalRecHitCollection> ecalRecHitHandleEB,edm::Handle<HBHERecHitCollection> hcalRecHitHandleHBHE,edm::Handle<HGCeeRecHitCollection> HGCeeRecHitHandle,edm::Handle<HGChefRecHitCollection> HGChefRecHitHandle,edm::Handle<HGChebRecHitCollection> HGChebRecHitHandle, reco::Vertex& pv, const edm::Event& iEvent, const edm::EventSetup& iSetup);
+  void prepareHits(edm::Handle<reco::PFRecHitCollection> ecalRecHitHandleEB,edm::Handle<reco::PFRecHitCollection> hcalRecHitHandleHBHE,edm::Handle<reco::PFRecHitCollection> HGCeeRecHitHandle,edm::Handle<reco::PFRecHitCollection> HGChefRecHitHandle,edm::Handle<reco::PFRecHitCollection> HGChebRecHitHandle, reco::Vertex& pv, const edm::Event& iEvent, const edm::EventSetup& iSetup);
   void preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > genpart);
-  void ProcessRecHit(const CaloRecHit* rh, int subdet, const CaloSubdetectorGeometry& geom, CalibCalo* calib, int& nCaloHits, int& nNotFound, reco::Vertex& pv,
+  void ProcessRecHits(edm::Handle<reco::PFRecHitCollection> PFRecHitHandle, int subdet, const CaloSubdetectorGeometry* geom, CalibCalo* calib, int& nCaloHits, int& nNotFound, reco::Vertex& pv,
                      const pandora::HitType hitType, const pandora::HitRegion hitRegion, PandoraApi::RectangularCaloHitParameters& caloHitParameters);
 
   
   void preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSetup);
   void prepareGeometry(const edm::EventSetup& iSetup);
   void SetDefaultSubDetectorParameters(const std::string &subDetectorName, const pandora::SubDetectorType subDetectorType, PandoraApi::Geometry::SubDetector::Parameters &parameters) const;
-  void CalculateCornerSubDetectorParameters(const CaloSubdetectorGeometry& geom,  const std::vector<DetId>& cells, const pandora::SubDetectorType subDetectorType, 
+  void CalculateCornerSubDetectorParameters(const CaloSubdetectorGeometry* geom,  const std::vector<DetId>& cells, const pandora::SubDetectorType subDetectorType, 
                                             double& min_innerRadius, double& max_outerRadius, double& min_innerZ, double& max_outerZ,
                                             bool doLayers, std::vector<double>& min_innerR_depth, std::vector<double>& min_innerZ_depth) const;
   void SetCornerSubDetectorParameters(PandoraApi::Geometry::SubDetector::Parameters &parameters, 
@@ -158,6 +154,9 @@ private:
   edm::InputTag    inputTagGenParticles_;
   std::vector<edm::InputTag>  inputTagGeneralTracks_;
   //std::vector<std::string> mFileNames;
+  
+  // hash tables to translate back to CMSSW collection index from Pandora
+  std::unordered_map<void*,int> recHitMap;
 
   TFile * file;
   TTree *mytree;

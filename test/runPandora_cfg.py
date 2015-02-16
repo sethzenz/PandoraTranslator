@@ -73,11 +73,11 @@ process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
     )
 
 process.pandorapfanew = cms.EDAnalyzer('runPandora',
-    ecalRecHitsEB = cms.InputTag("ecalRecHit","EcalRecHitsEB"),
-    hcalRecHitsHBHE = cms.InputTag("reducedHcalRecHits","hbheUpgradeReco"),
-    HGCEErechitCollection  = cms.InputTag('HGCalRecHit','HGCEERecHits'), 
-    HGCHEFrechitCollection = cms.InputTag('HGCalRecHit','HGCHEFRecHits'), 
-    HGCHEBrechitCollection = cms.InputTag('HGCalRecHit','HGCHEBRecHits'), 
+    ecalRecHitsEB = cms.InputTag("particleFlowRecHitECAL",""),
+    hcalRecHitsHBHE = cms.InputTag("particleFlowRecHitHBHE",""),
+    HGCEErechitCollection  = cms.InputTag("particleFlowRecHitHGCEE",""), 
+    HGCHEFrechitCollection = cms.InputTag("particleFlowRecHitHGCHEF",""), 
+    HGCHEBrechitCollection = cms.InputTag("particleFlowRecHitHGCHEB",""), 
     generaltracks = cms.VInputTag(cms.InputTag("generalTracks")),
     tPRecoTrackAsssociation= cms.InputTag("trackingParticleRecoTrackAsssociation"),
     genParticles= cms.InputTag("genParticles"),
