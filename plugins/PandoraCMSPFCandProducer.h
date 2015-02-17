@@ -25,7 +25,7 @@
 
 // user include files
 #include "FWCore/Framework/interface/Frameworkfwd.h"
-#include "FWCore/Framework/interface/EDAnalyzer.h"
+#include "FWCore/Framework/interface/EDProducer.h"
 #include "FWCore/Framework/interface/ESHandle.h"
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
@@ -76,26 +76,26 @@ class HGCalGeometry;
 
 // namespace pandora {class Pandora;}
 
-class runPandora : public edm::EDAnalyzer {
+class PandoraCMSPFCandProducer : public edm::EDProducer {
 public:
   //enum for subdet types
   enum subdet { EB = 1, HB = 2, EE = 3, HEF = 4, HEB = 5 };
 
-  explicit runPandora(const edm::ParameterSet&);
-  ~runPandora();
+  explicit PandoraCMSPFCandProducer(const edm::ParameterSet&);
+  ~PandoraCMSPFCandProducer();
 
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
   static pandora::Pandora        *m_pPandora;
 
-  void prepareTrack(math::XYZVector B_,const reco::RecoToSimCollection pRecoToSim,const edm::Event& iEvent);
-  void prepareHits(const edm::Event& iEvent);
+  void prepareTrack(math::XYZVector B_,const reco::RecoToSimCollection pRecoToSim,edm::Event& iEvent);
+  void prepareHits(edm::Event& iEvent);
   void preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > genpart);
   void ProcessRecHits(edm::Handle<reco::PFRecHitCollection> PFRecHitHandle, int subdet, const CaloSubdetectorGeometry* geom, CalibCalo* calib, int& nCaloHits, int& nNotFound, reco::Vertex& pv,
                      const pandora::HitType hitType, const pandora::HitRegion hitRegion, PandoraApi::RectangularCaloHitParameters& caloHitParameters);
 
   
-  void preparePFO(const edm::Event& iEvent);
+  void preparePFO(edm::Event& iEvent);
   void prepareGeometry();
   void SetDefaultSubDetectorParameters(const std::string &subDetectorName, const pandora::SubDetectorType subDetectorType, PandoraApi::Geometry::SubDetector::Parameters &parameters) const;
   void CalculateCornerSubDetectorParameters(const CaloSubdetectorGeometry* geom,  const std::vector<DetId>& cells, const pandora::SubDetectorType subDetectorType, 
@@ -125,7 +125,7 @@ public:
 
 private:
   virtual void beginJob() override;
-  virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
+  virtual void produce(edm::Event&, const edm::EventSetup&) override;
   virtual void endJob() override;
   virtual void beginLuminosityBlock(const edm::LuminosityBlock&, const edm::EventSetup&) override;
 
@@ -261,7 +261,7 @@ private:
 class CalibCalo {
   public:
     //constructor
-    CalibCalo(runPandora::subdet id) : m_id(id) {}
+    CalibCalo(PandoraCMSPFCandProducer::subdet id) : m_id(id) {}
     //destructor
     virtual ~CalibCalo() {}
     
@@ -274,7 +274,7 @@ class CalibCalo {
     virtual double GetHADCalib(unsigned int layer) { return m_CalToHADGeV; }
     
     //member variables
-    runPandora::subdet m_id;
+    PandoraCMSPFCandProducer::subdet m_id;
     double m_CalThresh;
     double m_CalMipThresh;
     double m_CalToMip;
@@ -291,7 +291,7 @@ class CalibCalo {
 class CalibHGC : public CalibCalo {
   public:
     //constructor
-    CalibHGC(runPandora::subdet id, int totalLayers, std::string energyCorrMethod, steerManager *stm)
+    CalibHGC(PandoraCMSPFCandProducer::subdet id, int totalLayers, std::string energyCorrMethod, steerManager *stm)
             : CalibCalo(id), m_TotalLayers(totalLayers), m_energyCorrMethod(energyCorrMethod), m_stm(stm) {}
     //destructor
     virtual ~CalibHGC() {}
@@ -349,7 +349,7 @@ class CalibHGCEE : public CalibHGC {
   public:
     //constructor
     CalibHGCEE(int totalLayers, std::string energyCorrMethod, steerManager *stm)
-              : CalibHGC(runPandora::subdet::EE, totalLayers, energyCorrMethod, stm) {}
+              : CalibHGC(PandoraCMSPFCandProducer::subdet::EE, totalLayers, energyCorrMethod, stm) {}
     //destructor
     virtual ~CalibHGCEE() {}
               
@@ -405,7 +405,7 @@ class CalibHGCHEF : public CalibHGC {
   public:
     //constructor
     CalibHGCHEF(int totalLayers, std::string energyCorrMethod, steerManager *stm)
-              : CalibHGC(runPandora::subdet::HEF, totalLayers, energyCorrMethod, stm) {}
+              : CalibHGC(PandoraCMSPFCandProducer::subdet::HEF, totalLayers, energyCorrMethod, stm) {}
     //destructor
     virtual ~CalibHGCHEF() {}
               
@@ -441,7 +441,7 @@ class CalibHGCHEB : public CalibHGC {
   public:
     //constructor
     CalibHGCHEB(int totalLayers, std::string energyCorrMethod, steerManager *stm)
-              : CalibHGC(runPandora::subdet::HEB, totalLayers, energyCorrMethod, stm) {}
+              : CalibHGC(PandoraCMSPFCandProducer::subdet::HEB, totalLayers, energyCorrMethod, stm) {}
     //destructor
     virtual ~CalibHGCHEB() {}
               

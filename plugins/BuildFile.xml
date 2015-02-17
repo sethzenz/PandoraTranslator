@@ -23,6 +23,7 @@
 <use name="DQMServices/Core"/>
 <use name="TrackingTools/MaterialEffects"/>
 <use name="DataFormats/ParticleFlowReco"/>
+<use name="DataFormats/ParticleFlowCandidate"/>
 <use name="root"/>
 <use name="rootmathcore"/>
 <use name="rootcore"/>

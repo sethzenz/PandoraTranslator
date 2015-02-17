@@ -72,7 +72,7 @@ process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
     ignoremissingtrackcollection = cms.untracked.bool(False)
     )
 
-process.pandorapfanew = cms.EDAnalyzer('runPandora',
+process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
     ecalRecHitsEB = cms.InputTag("particleFlowRecHitECAL",""),
     hcalRecHitsHBHE = cms.InputTag("particleFlowRecHitHBHE",""),
     HGCEErechitCollection  = cms.InputTag("particleFlowRecHitHGCEE",""), 
