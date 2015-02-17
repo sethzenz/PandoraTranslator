@@ -93,6 +93,7 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
     energyWeightFile = cms.FileInPath('HGCal/PandoraTranslator/data/energyWeight.txt'),
 
     calibrParFile = cms.FileInPath('HGCal/PandoraTranslator/data/pandoraCalibrPars.txt'),
+    layerDepthFile = cms.FileInPath('HGCal/PandoraTranslator/data/HGCmaterial_v5.root'),
     outputFile = cms.string('pandoraoutput.root')
 )
 

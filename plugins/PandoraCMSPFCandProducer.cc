@@ -57,6 +57,8 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <iterator>
+#include <unordered_set>
 
 using namespace edm;
 using namespace reco;
@@ -81,7 +83,7 @@ pandora::Pandora * PandoraCMSPFCandProducer::m_pPandora = NULL;
 //
 // constructors and destructor
 //
-PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iConfig) 
+PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iConfig) : calibInitialized(false)
 {
   produces<reco::PFCandidateCollection>();
 
@@ -104,6 +106,7 @@ PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iCon
   m_calibrationParameterFile = iConfig.getParameter<edm::FileInPath>("calibrParFile");
   m_energyCorrMethod = iConfig.getParameter<std::string>("energyCorrMethod");
   m_energyWeightingFilename  = iConfig.getParameter<edm::FileInPath>("energyWeightFile");
+  m_layerDepthFilename = iConfig.getParameter<edm::FileInPath>("layerDepthFile");
   _outputFileName = iConfig.getParameter<std::string>("outputFile");
 
   stm = new steerManager(m_energyWeightingFilename.fullPath().c_str());
@@ -159,16 +162,9 @@ void PandoraCMSPFCandProducer::produce(edm::Event& iEvent, const edm::EventSetup
 
   // std::cout << "Analyzing events 1 " << std::endl ;
 
-
-    
-
-  
-
-
   prepareTrack(iEvent);
-  preparemcParticle(iEvent);
+  preparemcParticle(iEvent); //put before prepareHits() to have mc info, for mip calib check
   prepareHits(iEvent);
-  //preparemcParticle(genpart); //put before prepareHits() to have mc info, for mip calib check
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::ProcessEvent(*m_pPandora));
   preparePFO(iEvent);
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::Reset(*m_pPandora));
@@ -375,41 +371,90 @@ void PandoraCMSPFCandProducer::prepareGeometry(){ // function to setup a geometr
   std::vector<PandoraApi::Geometry::LayerParameters*> hgcHEFLayerParameters;
   std::vector<PandoraApi::Geometry::LayerParameters*> hgcHEBLayerParameters;
 
-  //todo: un-hardcode these values
-  unsigned int nHGCeeLayers = 32, nHGChefLayers = 32, nHGChebLayers = 21 ; 
+  //initialize HGC layer calibrations (only happens once)
+  if(!calibInitialized){
+    calibInitialized = true;
+	
+	//get # of layers from geometry
+	const HGCalGeometry* hgcGeometries[3] = {HGCEEGeometry, HGCHEFGeometry, HGCHEBGeometry};
+	unsigned int nHGClayers[3];
+	for(unsigned int h = 0; h < 3; h++){
+      const HGCalDDDConstants &dddCons = hgcGeometries[h]->topology().dddConstants();
+      auto firstLayerIt = dddCons.getFirstTrForm();
+      auto lastLayerIt = dddCons.getLastTrForm();
+	  std::unordered_set<float> uniqueZvals;
+	  for(auto layerIt=firstLayerIt; layerIt !=lastLayerIt; layerIt++) {
+        if(layerIt->h3v.z()>0) uniqueZvals.insert(layerIt->h3v.z());
+	  }
+      nHGClayers[h] = uniqueZvals.size();
+	}
+	
+	//divide # of HGCHEB layers by 2 to account for offset in each sector
+    nHGCeeLayers = nHGClayers[0]; nHGChefLayers = nHGClayers[1]; nHGChebLayers = nHGClayers[2]/2;
+	std::cout << "HGCEE layers = " << nHGCeeLayers << ", HGCHEF layers = " << nHGChefLayers << ", HGCHEB layers = " << nHGChebLayers << std::endl;
+
+	//set layer max vals in calib objects
+	m_calibEE->m_TotalLayers = nHGCeeLayers;
+	m_calibHEF->m_TotalLayers = nHGChefLayers;
+	m_calibHEB->m_TotalLayers = nHGChebLayers;
+
+	//open ROOT file with histograms containing layer depths
+	TFile* file = TFile::Open(m_layerDepthFilename.fullPath().c_str(),"READ");
+	TH1F* h_x0 = (TH1F*)file->Get("x0");
+	TH1F* h_lambda = (TH1F*)file->Get("lambda");
+	unsigned h_max = h_x0->GetNbinsX();
+	for(unsigned ih = 1; ih < h_max; ih++){
+		if(ih <= nHGCeeLayers) {
+			m_calibEE->nCellRadiationLengths.push_back(h_x0->GetBinContent(ih));
+			m_calibEE->nCellInteractionLengths.push_back(h_lambda->GetBinContent(ih));
+		}
+		else if(ih <= nHGCeeLayers + nHGChefLayers){
+			m_calibHEF->nCellRadiationLengths.push_back(h_x0->GetBinContent(ih));
+			m_calibHEF->nCellInteractionLengths.push_back(h_lambda->GetBinContent(ih));
+		}
+		else if(ih <= nHGCeeLayers + nHGChefLayers + nHGChebLayers){
+			m_calibHEB->nCellRadiationLengths.push_back(h_x0->GetBinContent(ih));
+			m_calibHEB->nCellInteractionLengths.push_back(h_lambda->GetBinContent(ih));
+		}
+	}
+	//close file
+	file->Close();
+	
+	//initialize corrections after getting all calibrations (in beginJob) and layer depths
+    m_calibEE->initialize();
+    m_calibHEF->initialize();
+    m_calibHEB->initialize();	
+	
+  }
+  
   std::vector<double> min_innerR_depth_ee, min_innerZ_depth_ee ; 
   std::vector<double> min_innerR_depth_hef, min_innerZ_depth_hef ; 
   std::vector<double> min_innerR_depth_heb, min_innerZ_depth_heb ;
-  for (unsigned int i=0; i<nHGCeeLayers; i++) { 
+  for (unsigned int i=0; i<=nHGCeeLayers; i++) { 
     PandoraApi::Geometry::LayerParameters *eeLayerParameters;
     eeLayerParameters = new PandoraApi::Geometry::LayerParameters();
     hgcEELayerParameters.push_back( eeLayerParameters ) ; 
     min_innerR_depth_ee.push_back( 99999.0 ) ; 
-    min_innerZ_depth_ee.push_back( 99999.0 ) ; 
-
+    min_innerZ_depth_ee.push_back( 99999.0 ) ;
+  }
+  for (unsigned int i=0; i<=nHGChefLayers; i++) { 
     PandoraApi::Geometry::LayerParameters *hefLayerParameters;
     hefLayerParameters = new PandoraApi::Geometry::LayerParameters();
     hgcHEFLayerParameters.push_back( hefLayerParameters ) ; 
     min_innerR_depth_hef.push_back( 99999.0 ) ; 
-    min_innerZ_depth_hef.push_back( 99999.0 ) ; 
-
-    if ( i < nHGChebLayers ) { 
+    min_innerZ_depth_hef.push_back( 99999.0 ) ;
+  }
+  for (unsigned int i=0; i<=nHGChebLayers; i++) { 
       PandoraApi::Geometry::LayerParameters *hebLayerParameters;
       hebLayerParameters = new PandoraApi::Geometry::LayerParameters();
       hgcHEBLayerParameters.push_back( hebLayerParameters ) ; 
       min_innerR_depth_heb.push_back( 99999.0 ) ; 
       min_innerZ_depth_heb.push_back( 99999.0 ) ; 
-    }
   }
 
   // dummy vectors for CalculateCornerSubDetectorParameters function
   std::vector<double> min_innerR_depth_eb, min_innerZ_depth_eb ; 
   std::vector<double> min_innerR_depth_hb, min_innerZ_depth_hb ; 
-  
-  // To be enabled
-  // PandoraApi::Geometry::LayerParameters *hgceeLayerParameters  = new PandoraApi::Geometry::LayerParameters();
-  // PandoraApi::Geometry::LayerParameters *hgchefLayerParameters = new PandoraApi::Geometry::LayerParameters();
-  // PandoraApi::Geometry::LayerParameters *hgchebLayerParameters = new PandoraApi::Geometry::LayerParameters();
   
   SetDefaultSubDetectorParameters("EcalBarrel", pandora::ECAL_BARREL, *ebParameters);
   SetDefaultSubDetectorParameters("EcalEndcap", pandora::ECAL_ENDCAP, *eeParameters);
@@ -437,26 +482,24 @@ void PandoraCMSPFCandProducer::prepareGeometry(){ // function to setup a geometr
   //corner & layer parameters for EE
   min_innerRadius = 99999.0 ; max_outerRadius = 0.0 ;
   min_innerZ = 99999.0 ; max_outerZ = 0.0 ;
-  int nLayers = 0;
   CalculateCornerSubDetectorParameters(HGCEEGeometry, ecalEndcapCells, pandora::ECAL_ENDCAP, min_innerRadius, max_outerRadius, min_innerZ, max_outerZ,
                                        true, min_innerR_depth_ee, min_innerZ_depth_ee);
   SetCornerSubDetectorParameters(*eeParameters, min_innerRadius, max_outerRadius, min_innerZ, max_outerZ);
-  SetMultiLayerParameters(*eeParameters, hgcEELayerParameters, min_innerR_depth_ee, min_innerZ_depth_ee, nHGCeeLayers, nLayers);
-  eeParameters->m_nLayers = nLayers ; // HACK(?) to account for the invalid layer 0(???)
+  SetMultiLayerParameters(*eeParameters, hgcEELayerParameters, min_innerR_depth_ee, min_innerZ_depth_ee, nHGCeeLayers, m_calibEE);
+  eeParameters->m_nLayers = nHGCeeLayers;
 
   //corner & layer parameters for HE
   //consider both HEF and HEB together
   min_innerRadius = 99999.0 ; max_outerRadius = 0.0 ;
   min_innerZ = 99999.0 ; max_outerZ = 0.0 ;
-  nLayers = 0;
   CalculateCornerSubDetectorParameters(HGCHEFGeometry, hcalEndcapCellsFront, pandora::HCAL_ENDCAP, min_innerRadius, max_outerRadius, min_innerZ, max_outerZ,
                                        true, min_innerR_depth_hef, min_innerZ_depth_hef);
   CalculateCornerSubDetectorParameters(HGCHEBGeometry, hcalEndcapCellsBack, pandora::HCAL_ENDCAP, min_innerRadius, max_outerRadius, min_innerZ, max_outerZ,
                                        true, min_innerR_depth_heb, min_innerZ_depth_heb);
   SetCornerSubDetectorParameters(*heParameters, min_innerRadius, max_outerRadius, min_innerZ, max_outerZ);
-  SetMultiLayerParameters(*heParameters, hgcHEFLayerParameters, min_innerR_depth_hef, min_innerZ_depth_hef, nHGChefLayers, nLayers);
-  SetMultiLayerParameters(*heParameters, hgcHEBLayerParameters, min_innerR_depth_heb, min_innerZ_depth_heb, nHGChebLayers, nLayers);
-  heParameters->m_nLayers = nLayers ; // HACK
+  SetMultiLayerParameters(*heParameters, hgcHEFLayerParameters, min_innerR_depth_hef, min_innerZ_depth_hef, nHGChefLayers, m_calibHEF);
+  SetMultiLayerParameters(*heParameters, hgcHEBLayerParameters, min_innerR_depth_heb, min_innerZ_depth_heb, nHGChebLayers, m_calibHEB);
+  heParameters->m_nLayers = nHGChefLayers + nHGChebLayers;
 
   // std::cout << "before set GEO" << std::endl;
   // std::cout << "Idle check: " << geometryParameters.m_InnerRCoordinate << std::endl ; 
@@ -562,17 +605,14 @@ void PandoraCMSPFCandProducer::SetSingleLayerParameters(PandoraApi::Geometry::Su
 }
 
 void PandoraCMSPFCandProducer::SetMultiLayerParameters(PandoraApi::Geometry::SubDetector::Parameters &parameters, std::vector<PandoraApi::Geometry::LayerParameters*> &layerParameters,
-                                         std::vector<double>& min_innerR_depth, std::vector<double>& min_innerZ_depth, const unsigned int& nTotalLayers, int& nLayers) const 
+                                         std::vector<double>& min_innerR_depth, std::vector<double>& min_innerZ_depth, const unsigned int& nTotalLayers, CalibCalo* calib) const 
 {
-  for (unsigned int i=0; i<nTotalLayers; i++) { 
+  for (unsigned int i=1; i<=nTotalLayers; i++) { //skip nonexistent layer 0
     double distToIP = 10.0 * sqrt(min_innerR_depth.at(i)*min_innerR_depth.at(i) + min_innerZ_depth.at(i)*min_innerZ_depth.at(i)) ; 
     layerParameters.at(i)->m_closestDistanceToIp = distToIP ; 
-    layerParameters.at(i)->m_nInteractionLengths = 0.0 ; // No idea what to say here.  Include the tracker material?
-    layerParameters.at(i)->m_nRadiationLengths = 0.0 ; // No idea what to say here.  Include the tracker material?
-    if ( distToIP < 10000.0 ) { 
-      nLayers++ ; 
-      parameters.m_layerParametersList.push_back(*(layerParameters.at(i))) ; 
-    }
+    layerParameters.at(i)->m_nInteractionLengths = calib->nCellInteractionLengths[i] ; // No idea what to say here.  Include the tracker material?
+    layerParameters.at(i)->m_nRadiationLengths = calib->nCellRadiationLengths[i] ; // No idea what to say here.  Include the tracker material?
+    parameters.m_layerParametersList.push_back(*(layerParameters.at(i))) ; 
   }
 }
 
@@ -1117,7 +1157,7 @@ void PandoraCMSPFCandProducer::ProcessRecHits(edm::Handle<reco::PFRecHitCollecti
       caloHitParameters.m_nCellInteractionLengths = 0.0; // 6.;
     }
     else if(hitRegion==pandora::ENDCAP){
-      caloHitParameters.m_layer = layer;
+      caloHitParameters.m_layer = layer + (calib->m_id==subdet::HEB ? nHGChefLayers : 0); //offset for HEB because combined with HEF in pandora
       caloHitParameters.m_nCellRadiationLengths = calib->nCellRadiationLengths[layer];
       caloHitParameters.m_nCellInteractionLengths = calib->nCellInteractionLengths[layer]; // 6.;
       m_hitEperLayer_EM[calib->m_id][layer] += caloHitParameters.m_electromagneticEnergy.Get();
@@ -1648,20 +1688,15 @@ void PandoraCMSPFCandProducer::beginJob()
   TH1::AddDirectory(oldAddDir); 
 
   // read in calibration parameters
-  nHGCeeLayers = 32; nHGChefLayers = 32; nHGChebLayers = 21;
   m_calibEB = new CalibCalo(subdet::EB);
   m_calibHB = new CalibCalo(subdet::HB);
-  m_calibEE = new CalibHGCEE(nHGCeeLayers,m_energyCorrMethod,stm);
-  m_calibHEF = new CalibHGCHEF(nHGChefLayers,m_energyCorrMethod,stm);
-  m_calibHEB = new CalibHGCHEB(nHGChebLayers,m_energyCorrMethod,stm);
+  m_calibEE = new CalibHGC(PandoraCMSPFCandProducer::subdet::EE,"EE",m_energyCorrMethod,stm);
+  m_calibHEF = new CalibHGC(PandoraCMSPFCandProducer::subdet::HEF,"HEF",m_energyCorrMethod,stm);
+  m_calibHEB = new CalibHGC(PandoraCMSPFCandProducer::subdet::HEB,"HEB",m_energyCorrMethod,stm);
   initPandoraCalibrParameters();
   readCalibrParameterFile();
   if (m_energyCorrMethod == "WEIGHTING")
      readEnergyWeight();
-  //initialize layer parameters after reading weights
-  m_calibEE->initialize();
-  m_calibHEF->initialize();
-  m_calibHEB->initialize();
 
   m_hitEperLayer_EM[subdet::EE]  = new double[100];
   m_hitEperLayer_EM[subdet::HEF] = new double[100];

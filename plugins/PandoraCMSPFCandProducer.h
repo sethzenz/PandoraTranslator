@@ -106,7 +106,7 @@ public:
                                       const double& min_innerRadius, const double& max_outerRadius, const double& min_innerZ, const double& max_outerZ) const;
   void SetSingleLayerParameters(PandoraApi::Geometry::SubDetector::Parameters &parameters, PandoraApi::Geometry::LayerParameters &layerParameters) const;
   void SetMultiLayerParameters(PandoraApi::Geometry::SubDetector::Parameters &parameters, std::vector<PandoraApi::Geometry::LayerParameters*> &layerParameters,
-                               std::vector<double>& min_innerR_depth, std::vector<double>& min_innerZ_depth, const unsigned int& nTotalLayers, int& nLayers) const;
+                               std::vector<double>& min_innerR_depth, std::vector<double>& min_innerZ_depth, const unsigned int& nTotalLayers, CalibCalo* calib) const;
                                          
   TrackingParticleRefVector getTpSiblings(TrackingParticleRef tp);
   TrackingParticleRefVector getTpDaughters(TrackingParticleRef tp);
@@ -116,6 +116,7 @@ public:
 
   edm::FileInPath m_calibrationParameterFile;
   edm::FileInPath m_energyWeightingFilename;
+  edm::FileInPath m_layerDepthFilename;
 
   std::string m_energyCorrMethod; //energy correction method
 
@@ -253,6 +254,7 @@ private:
 
   double m_muonToMip;
 
+  bool calibInitialized;
   short _debugLevel;
   double speedoflight;
 
@@ -284,6 +286,7 @@ class CalibCalo {
     double m_Calibr_ADC2GeV;
     double m_EM_addCalibr;
     double m_HAD_addCalibr;
+	unsigned int m_TotalLayers;
     std::vector<double> nCellInteractionLengths;
     std::vector<double> nCellRadiationLengths;
 };
@@ -292,8 +295,20 @@ class CalibCalo {
 class CalibHGC : public CalibCalo {
   public:
     //constructor
-    CalibHGC(PandoraCMSPFCandProducer::subdet id, int totalLayers, std::string energyCorrMethod, steerManager *stm)
-            : CalibCalo(id), m_TotalLayers(totalLayers), m_energyCorrMethod(energyCorrMethod), m_stm(stm) {}
+    CalibHGC(PandoraCMSPFCandProducer::subdet id, std::string name, std::string energyCorrMethod, steerManager *stm)
+            : CalibCalo(id), initialized(false), m_name(name), m_energyCorrMethod(energyCorrMethod), m_stm(stm)
+    {
+	  m_stm_nameLayer = "layerSet_" + m_name;
+	  m_stm_nameEM = "energyWeight_EM_" + m_name;
+	  m_stm_nameHAD = "energyWeight_HAD_" + m_name;
+      //skip layer 0 in all vectors
+	  nCellInteractionLengths.push_back(0.);
+      nCellRadiationLengths.push_back(0.);
+	  m_absorberCorrectionEM.push_back(1.);
+      m_absorberCorrectionHAD.push_back(1.);
+	  m_energyWeightEM.push_back(1.);
+	  m_energyWeightHAD.push_back(1.);
+	}
     //destructor
     virtual ~CalibHGC() {}
     
@@ -324,147 +339,29 @@ class CalibHGC : public CalibCalo {
     
     //helper functions
     virtual void initialize() {
-      nCellInteractionLengths.reserve(m_TotalLayers);
-      nCellRadiationLengths.reserve(m_TotalLayers);
-      m_absorberCorrectionEM.reserve(m_TotalLayers);
-      m_absorberCorrectionHAD.reserve(m_TotalLayers);
-      m_energyWeightEM.reserve(m_TotalLayers);
-      m_energyWeightHAD.reserve(m_TotalLayers);
+	  if(initialized) return;
       getLayerProperties();
+	  initialized = true;
     }
-    virtual void getLayerProperties() {}
+    virtual void getLayerProperties() {
+      for(unsigned layer = 1; layer <= m_TotalLayers; layer++){        
+        m_absorberCorrectionEM.push_back(nCellRadiationLengths[layer]/nCellRadiationLengths[1]);
+        m_absorberCorrectionHAD.push_back(nCellInteractionLengths[layer]/nCellInteractionLengths[1]);
+        
+        m_energyWeightEM.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameEM));
+        m_energyWeightHAD.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameHAD));
+      }
+	}
     
     //member variables
-    unsigned int m_TotalLayers;
+	bool initialized;
+	std::string m_name;
     std::string m_energyCorrMethod;
     steerManager * m_stm;
+	std::string m_stm_nameLayer, m_stm_nameEM, m_stm_nameHAD;
     std::vector<double> m_absorberCorrectionEM;
     std::vector<double> m_absorberCorrectionHAD;
     std::vector<double> m_energyWeightEM;
     std::vector<double> m_energyWeightHAD;
 
-};
-
-//extension for HGCEE
-class CalibHGCEE : public CalibHGC {
-  public:
-    //constructor
-    CalibHGCEE(int totalLayers, std::string energyCorrMethod, steerManager *stm)
-              : CalibHGC(PandoraCMSPFCandProducer::subdet::EE, totalLayers, energyCorrMethod, stm) {}
-    //destructor
-    virtual ~CalibHGCEE() {}
-              
-    //helper functions
-    virtual void getLayerProperties() {
-      double absorberThickness_Pb[3] = { 1.6, 3.3, 5.6}; //mm
-      double absorberThickness_Cu[3] = { 3. , 3. , 3. }; //mm
-      
-      double absorberRadLength_Pb   = 0.561 * 10; //mm
-      double absorberRadLength_Cu   = 1.436 * 10; //mm
-      
-      double absorberIntLength_Pb = 17.59 * 10; //mm
-      double absorberIntLength_Cu = 15.32 * 10; //mm
-      
-      double firstLayerCu = 3.0; //mm
-      double firstLayerX0   = firstLayerCu / absorberRadLength_Cu;
-      double firstLayerLdaI = firstLayerCu / absorberIntLength_Cu;
-      
-      for(unsigned layer = 0; layer < m_TotalLayers; layer++){
-        int layerSet = 0;
-        if( layer <= 1){ //if layer == 1 then take predefined values (should be 1 & 0)
-          m_absorberCorrectionEM.push_back(1.);
-          m_absorberCorrectionHAD.push_back(1.);
-        
-          nCellInteractionLengths.push_back(0.);
-          nCellRadiationLengths.push_back(0.);
-        }
-        if ( 2 <= layer && layer <= 11 ) layerSet = 0;
-        else if ( 12<= layer && layer <= 21 ) layerSet = 1;
-        else if ( 22<= layer && layer <= 31 ) layerSet = 2;
-        else {
-           //std::cout << "OOUPSSSSSSSSSSSSSS, unknown layer!!!!" << std::endl;
-           continue;
-        } 
-        
-        double thisLayerX0 = absorberThickness_Pb[layerSet] / absorberRadLength_Pb + absorberThickness_Cu[layerSet] / absorberRadLength_Cu;
-        double thisLayerLdaI = absorberThickness_Pb[layerSet] / absorberIntLength_Pb + absorberThickness_Cu[layerSet] / absorberIntLength_Cu;
-        
-        m_absorberCorrectionEM.push_back(thisLayerX0   / firstLayerX0);
-        m_absorberCorrectionHAD.push_back(thisLayerLdaI / firstLayerLdaI);
-        
-        nCellInteractionLengths.push_back(thisLayerLdaI);
-        nCellRadiationLengths.push_back(thisLayerX0);
-        
-        m_energyWeightEM.push_back(m_stm->getCorrectionAtPoint(layer+1,"layerSet_EE","energyWeight_EM_EE"));
-        m_energyWeightHAD.push_back(m_stm->getCorrectionAtPoint(layer+1,"layerSet_EE","energyWeight_HAD_EE"));
-      }
-    }
-};
-
-//extension for HGCHEF
-class CalibHGCHEF : public CalibHGC {
-  public:
-    //constructor
-    CalibHGCHEF(int totalLayers, std::string energyCorrMethod, steerManager *stm)
-              : CalibHGC(PandoraCMSPFCandProducer::subdet::HEF, totalLayers, energyCorrMethod, stm) {}
-    //destructor
-    virtual ~CalibHGCHEF() {}
-              
-    //helper functions
-    virtual void getLayerProperties() {   
-      double absorberRadLength_Cu = 1.436 * 10; //mm
-      double absorberIntLength_Cu = 15.32 * 10; //mm
-      
-      double absorberRadLength_Br = 0.561 * 10; //lead instead, Valeri's mail, 16/7/2014
-      double absorberIntLength_Br = 17.59 * 10; //FIXME v5; v4 of geometry: may change to Brass
-      
-      double absorberThickness_Cu = 3.  ; //mm
-      double absorberThickness_Br = 52. ; //mm
-      
-      double layerX0 = absorberThickness_Cu / absorberRadLength_Cu + absorberThickness_Br / absorberRadLength_Br;
-      double layerLdaI = absorberThickness_Cu / absorberIntLength_Cu + absorberThickness_Br / absorberIntLength_Br;
-      
-      for(unsigned layer = 0; layer < m_TotalLayers; layer++){     
-        m_absorberCorrectionEM.push_back(1.);
-        m_absorberCorrectionHAD.push_back(1.);
-        
-        nCellInteractionLengths.push_back(layerLdaI);
-        nCellRadiationLengths.push_back(layerX0);
-        
-        m_energyWeightEM.push_back(m_stm->getCorrectionAtPoint(layer+1,"layerSet_HEF","energyWeight_EM_HEF"));
-        m_energyWeightHAD.push_back(m_stm->getCorrectionAtPoint(layer+1,"layerSet_HEF","energyWeight_HAD_HEF"));
-      }
-    }
-};
-
-//extension for HGCHEB
-class CalibHGCHEB : public CalibHGC {
-  public:
-    //constructor
-    CalibHGCHEB(int totalLayers, std::string energyCorrMethod, steerManager *stm)
-              : CalibHGC(PandoraCMSPFCandProducer::subdet::HEB, totalLayers, energyCorrMethod, stm) {}
-    //destructor
-    virtual ~CalibHGCHEB() {}
-              
-    //helper functions
-    virtual void getLayerProperties() {   
-      double absorberThickness_Br = 34.5 + 9; //mm
-      
-      double absorberRadLength_Br = 0.561 * 10;
-      double absorberIntLength_Br = 17.59 * 10;
-      
-      double layerX0   = absorberThickness_Br / absorberRadLength_Br;
-      double layerLdaI = absorberThickness_Br / absorberIntLength_Br;
-      
-      for(unsigned layer = 0; layer < m_TotalLayers; layer++){     
-        m_absorberCorrectionEM.push_back(1.);
-        m_absorberCorrectionHAD.push_back(1.);
-        
-        nCellInteractionLengths.push_back(layerLdaI);
-        nCellRadiationLengths.push_back(layerX0);
-        
-        m_energyWeightEM.push_back(m_stm->getCorrectionAtPoint(layer+1,"layerSet_HEB","energyWeight_EM_HEB"));
-        m_energyWeightHAD.push_back(m_stm->getCorrectionAtPoint(layer+1,"layerSet_HEB","energyWeight_HAD_HEB"));
-      }
-    }
 };
