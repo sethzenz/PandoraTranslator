@@ -26,7 +26,7 @@
 // user include files
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/EDAnalyzer.h"
-
+#include "FWCore/Framework/interface/ESHandle.h"
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
 
@@ -69,6 +69,10 @@
 // class declaration
 //
 class CalibCalo;
+class CaloGeometryRecord;
+class IdealGeometryRecord;
+class CaloGeometry;
+class HGCalGeometry;
 
 // namespace pandora {class Pandora;}
 
@@ -84,15 +88,15 @@ public:
 
   static pandora::Pandora        *m_pPandora;
 
-  void prepareTrack(math::XYZVector B_,const reco::RecoToSimCollection pRecoToSim,const edm::Event& iEvent, const edm::EventSetup& iSetup);
-  void prepareHits(edm::Handle<reco::PFRecHitCollection> ecalRecHitHandleEB,edm::Handle<reco::PFRecHitCollection> hcalRecHitHandleHBHE,edm::Handle<reco::PFRecHitCollection> HGCeeRecHitHandle,edm::Handle<reco::PFRecHitCollection> HGChefRecHitHandle,edm::Handle<reco::PFRecHitCollection> HGChebRecHitHandle, reco::Vertex& pv, const edm::Event& iEvent, const edm::EventSetup& iSetup);
+  void prepareTrack(math::XYZVector B_,const reco::RecoToSimCollection pRecoToSim,const edm::Event& iEvent);
+  void prepareHits(const edm::Event& iEvent);
   void preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > genpart);
   void ProcessRecHits(edm::Handle<reco::PFRecHitCollection> PFRecHitHandle, int subdet, const CaloSubdetectorGeometry* geom, CalibCalo* calib, int& nCaloHits, int& nNotFound, reco::Vertex& pv,
                      const pandora::HitType hitType, const pandora::HitRegion hitRegion, PandoraApi::RectangularCaloHitParameters& caloHitParameters);
 
   
-  void preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSetup);
-  void prepareGeometry(const edm::EventSetup& iSetup);
+  void preparePFO(const edm::Event& iEvent);
+  void prepareGeometry();
   void SetDefaultSubDetectorParameters(const std::string &subDetectorName, const pandora::SubDetectorType subDetectorType, PandoraApi::Geometry::SubDetector::Parameters &parameters) const;
   void CalculateCornerSubDetectorParameters(const CaloSubdetectorGeometry* geom,  const std::vector<DetId>& cells, const pandora::SubDetectorType subDetectorType, 
                                             double& min_innerRadius, double& max_outerRadius, double& min_innerZ, double& max_outerZ,
@@ -123,6 +127,7 @@ private:
   virtual void beginJob() override;
   virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
   virtual void endJob() override;
+  virtual void beginLuminosityBlock(const edm::LuminosityBlock&, const edm::EventSetup&) override;
 
   virtual void resetVariables() {
      for (int il=0; il<100; il++) {
@@ -157,6 +162,12 @@ private:
   
   // hash tables to translate back to CMSSW collection index from Pandora
   std::unordered_map<void*,int> recHitMap;
+  
+  //geometry handles
+  edm::ESHandle<CaloGeometry> geoHandle;
+  edm::ESHandle<HGCalGeometry> hgceeGeoHandle ; 
+  edm::ESHandle<HGCalGeometry> hgchefGeoHandle ; 
+  edm::ESHandle<HGCalGeometry> hgchebGeoHandle ; 
 
   TFile * file;
   TTree *mytree;

@@ -152,38 +152,11 @@ void runPandora::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
   std::cout << "Analyzing events" << std::endl ; 
   if ( firstEvent_ ) { 
     firstEvent_ = false ; 
-    std::cout << "At the first event...preparing geometry" << std::endl ; 
-    prepareGeometry(iSetup) ; 
-    std::cout << "Done with Geometry setup...moving along" << std::endl ; 
     PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::ReadSettings(*m_pPandora, m_pandoraSettingsXmlFile.fullPath()));
 
   }
 
   // std::cout << "Analyzing events 1 " << std::endl ;
-
-  // Get the primary vertex
-  edm::Handle<reco::VertexCollection> pvHandle;
-  iEvent.getByLabel("offlinePrimaryVertices", pvHandle);
-  reco::Vertex pv = pvHandle->at(0) ; 
-  
-  // std::cout << "Analyzing events 2 " << std::endl ;
-  
-  // get the Calorimeter PFRecHit collections
-  edm::Handle<reco::PFRecHitCollection> ecalRecHitHandleEB;
-  edm::Handle<reco::PFRecHitCollection> hcalRecHitHandleHBHE;
-  edm::Handle<reco::PFRecHitCollection> HGCeeRecHitHandle;
-  edm::Handle<reco::PFRecHitCollection> HGChefRecHitHandle;
-  edm::Handle<reco::PFRecHitCollection> HGChebRecHitHandle;
-  
-  // std::cout << iEvent.getByLabel(inputTagHGCEErechit_, HGCeeRecHitHandle) << " " 
-  //         << iEvent.getByLabel(inputTagHGCHEFrechit_, HGChefRecHitHandle) << " " 
-  //         << iEvent.getByLabel(inputTagHGCHEBrechit_, HGChebRecHitHandle) << std::endl ; 
-
-  bool found = iEvent.getByLabel(inputTagEcalRecHitsEB_, ecalRecHitHandleEB) && 
-    iEvent.getByLabel(inputTagHcalRecHitsHBHE_, hcalRecHitHandleHBHE) && 
-    iEvent.getByLabel(inputTagHGCEErechit_, HGCeeRecHitHandle) && 
-    iEvent.getByLabel(inputTagHGCHEFrechit_, HGChefRecHitHandle) && 
-    iEvent.getByLabel(inputTagHGCHEBrechit_, HGChebRecHitHandle);
 
   edm::Handle<reco::RecoToSimCollection > rectosimCollection;
   iEvent.getByLabel(inputTagtPRecoTrackAsssociation_, rectosimCollection);
@@ -196,20 +169,13 @@ void runPandora::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
   edm::Handle<std::vector<reco::GenParticle> > genpart;
   iEvent.getByLabel(inputTagGenParticles_,genpart);
-  
-  if(!found ) {
-    std::ostringstream err;
-    err<<"cannot find rechits: "<< HGCeeRecHitHandle.isValid() << "," << HGChefRecHitHandle.isValid() << "," << HGChebRecHitHandle.isValid() ;
-    LogError("runPandora")<<err.str()<<std::endl;
-    throw cms::Exception( "MissingProduct", err.str());
-  } 
 
-  prepareTrack(B_,pRecoToSim,iEvent,iSetup);
+  prepareTrack(B_,pRecoToSim,iEvent);
   preparemcParticle(genpart);
-  prepareHits( ecalRecHitHandleEB,hcalRecHitHandleHBHE,HGCeeRecHitHandle,HGChefRecHitHandle,HGChebRecHitHandle,pv,iEvent,iSetup );
+  prepareHits(iEvent);
   //preparemcParticle(genpart); //put before prepareHits() to have mc info, for mip calib check
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::ProcessEvent(*m_pPandora));
-  preparePFO(iEvent,iSetup);
+  preparePFO(iEvent);
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::Reset(*m_pPandora));
 
 }
@@ -374,29 +340,17 @@ void runPandora::readEnergyWeight()
 
 
 
-void runPandora::prepareGeometry(const edm::EventSetup& iSetup){ // function to setup a geometry for pandora
+void runPandora::prepareGeometry(){ // function to setup a geometry for pandora
 
   // std::cout << "I am preparing my geometry!!!" << std::endl ; 
-
-  // 
-  // Add ECAL/HCAL parameters to geometry
-  //
-  edm::ESHandle<CaloGeometry> geoHandle;
-  iSetup.get<CaloGeometryRecord>().get(geoHandle);
   
   // Get the ecal/hcal barrel, endcap geometry
-  const CaloSubdetectorGeometry *ebtmp = geoHandle->getSubdetectorGeometry(DetId::Ecal, EcalBarrel);
-  const CaloSubdetectorGeometry *hbtmp = geoHandle->getSubdetectorGeometry(DetId::Hcal, HcalBarrel);
-
-  // Additions
-  edm::ESHandle<HGCalGeometry> hgceeGeoHandle ; 
-  edm::ESHandle<HGCalGeometry> hgchefGeoHandle ; 
-  edm::ESHandle<HGCalGeometry> hgchebGeoHandle ; 
+  const EcalBarrelGeometry* ecalBarrelGeometry = dynamic_cast< const EcalBarrelGeometry* > (geoHandle->getSubdetectorGeometry(DetId::Ecal, EcalBarrel));
+  const HcalGeometry* hcalBarrelGeometry = dynamic_cast< const HcalGeometry* > (geoHandle->getSubdetectorGeometry(DetId::Hcal, HcalBarrel));
+  assert( ecalBarrelGeometry );
+  assert( hcalBarrelGeometry );
   
-  iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",hgceeGeoHandle) ; 
-  iSetup.get<IdealGeometryRecord>().get("HGCalHESiliconSensitive",hgchefGeoHandle) ; 
-  iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",hgchebGeoHandle) ; 
-
+  // Additions
   const HGCalGeometry* HGCEEGeometry = hgceeGeoHandle.product() ; 
   const HGCalGeometry* HGCHEFGeometry = hgchefGeoHandle.product() ; 
   const HGCalGeometry* HGCHEBGeometry = hgchebGeoHandle.product() ; 
@@ -408,12 +362,6 @@ void runPandora::prepareGeometry(const edm::EventSetup& iSetup){ // function to 
   std::vector<DetId> hcalBarrelCells = geoHandle->getValidDetIds(DetId::Hcal, HcalBarrel);
   std::vector<DetId> hcalEndcapCellsFront = hgchefGeoHandle->getValidDetIds(DetId::Forward, HGCHEF);
   std::vector<DetId> hcalEndcapCellsBack  = hgchebGeoHandle->getValidDetIds(DetId::Forward, HGCHEB);
-  
-  const EcalBarrelGeometry* ecalBarrelGeometry = dynamic_cast< const EcalBarrelGeometry* > (ebtmp);
-  const HcalGeometry* hcalBarrelGeometry = dynamic_cast< const HcalGeometry* > (hbtmp);
-  
-  assert( ecalBarrelGeometry );
-  assert( hcalBarrelGeometry );
 
   PandoraApi::Geometry::SubDetector::Parameters *ebParameters = new PandoraApi::Geometry::SubDetector::Parameters();
   PandoraApi::Geometry::SubDetector::Parameters *eeParameters = new PandoraApi::Geometry::SubDetector::Parameters();
@@ -628,7 +576,7 @@ void runPandora::SetMultiLayerParameters(PandoraApi::Geometry::SubDetector::Para
   }
 }
 
-void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollection pRecoToSim, const edm::Event& iEvent, const edm::EventSetup& iSetup){ // function to setup tracks in an event for pandora
+void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollection pRecoToSim, const edm::Event& iEvent){ // function to setup tracks in an event for pandora
   PandoraApi::Track::Parameters trackParameters;
   //We need the speed of light
   double speedoflight = (CLHEP::c_light*CLHEP::mm)/CLHEP::ns;
@@ -873,14 +821,33 @@ void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollecti
 
 }
 
-void runPandora::prepareHits( edm::Handle<reco::PFRecHitCollection> ecalRecHitHandleEB,
-                  edm::Handle<reco::PFRecHitCollection> hcalRecHitHandleHBHE, 
-                  edm::Handle<reco::PFRecHitCollection> HGCeeRecHitHandle,
-                  edm::Handle<reco::PFRecHitCollection> HGChefRecHitHandle,
-                  edm::Handle<reco::PFRecHitCollection> HGChebRecHitHandle,
-                  reco::Vertex& pv, 
-                  const edm::Event& iEvent, const edm::EventSetup& iSetup)
+void runPandora::prepareHits( const edm::Event& iEvent)
 {
+  // Get the primary vertex
+  edm::Handle<reco::VertexCollection> pvHandle;
+  iEvent.getByLabel("offlinePrimaryVertices", pvHandle);
+  reco::Vertex pv = pvHandle->at(0) ; 
+  
+  // get the Calorimeter PFRecHit collections
+  edm::Handle<reco::PFRecHitCollection> ecalRecHitHandleEB;
+  edm::Handle<reco::PFRecHitCollection> hcalRecHitHandleHBHE;
+  edm::Handle<reco::PFRecHitCollection> HGCeeRecHitHandle;
+  edm::Handle<reco::PFRecHitCollection> HGChefRecHitHandle;
+  edm::Handle<reco::PFRecHitCollection> HGChebRecHitHandle;
+
+  bool found = iEvent.getByLabel(inputTagEcalRecHitsEB_, ecalRecHitHandleEB) && 
+    iEvent.getByLabel(inputTagHcalRecHitsHBHE_, hcalRecHitHandleHBHE) && 
+    iEvent.getByLabel(inputTagHGCEErechit_, HGCeeRecHitHandle) && 
+    iEvent.getByLabel(inputTagHGCHEFrechit_, HGChefRecHitHandle) && 
+    iEvent.getByLabel(inputTagHGCHEBrechit_, HGChebRecHitHandle);
+	
+  if(!found ) {
+    std::ostringstream err;
+    err<<"cannot find rechits: "<< HGCeeRecHitHandle.isValid() << "," << HGChefRecHitHandle.isValid() << "," << HGChebRecHitHandle.isValid() ;
+    LogError("runPandora")<<err.str()<<std::endl;
+    throw cms::Exception( "MissingProduct", err.str());
+  } 
+
   PandoraApi::RectangularCaloHitParameters caloHitParameters;
 
   std::cout<< speedoflight << " cm/ns" << std::endl;
@@ -899,22 +866,12 @@ void runPandora::prepareHits( edm::Handle<reco::PFRecHitCollection> ecalRecHitHa
   sumCaloHCALEnergyHAD = 0.;
 
   // Get the ecal/hcal barrel geometry
-  edm::ESHandle<CaloGeometry> geoHandle;
-  iSetup.get<CaloGeometryRecord>().get(geoHandle);
-  const CaloSubdetectorGeometry *ebtmp = geoHandle->getSubdetectorGeometry(DetId::Ecal, EcalBarrel);
-  const CaloSubdetectorGeometry *hbtmp = geoHandle->getSubdetectorGeometry(DetId::Hcal, HcalBarrel);
-  const EcalBarrelGeometry* ecalBarrelGeometry = dynamic_cast< const EcalBarrelGeometry* > (ebtmp);
-  const HcalGeometry* hcalBarrelGeometry = dynamic_cast< const HcalGeometry* > (hbtmp);
+  const EcalBarrelGeometry* ecalBarrelGeometry = dynamic_cast< const EcalBarrelGeometry* > (geoHandle->getSubdetectorGeometry(DetId::Ecal, EcalBarrel));
+  const HcalGeometry* hcalBarrelGeometry = dynamic_cast< const HcalGeometry* > (geoHandle->getSubdetectorGeometry(DetId::Hcal, HcalBarrel));
   assert( ecalBarrelGeometry );
   assert( hcalBarrelGeometry );
   
   // Get the HGC geometry
-  edm::ESHandle<HGCalGeometry> hgceeGeoHandle ; 
-  edm::ESHandle<HGCalGeometry> hgchefGeoHandle ; 
-  edm::ESHandle<HGCalGeometry> hgchebGeoHandle ; 
-  iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",hgceeGeoHandle) ; 
-  iSetup.get<IdealGeometryRecord>().get("HGCalHESiliconSensitive",hgchefGeoHandle) ; 
-  iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",hgchebGeoHandle) ; 
   const HGCalGeometry* HGCEEGeometry = hgceeGeoHandle.product() ; 
   const HGCalGeometry* HGCHEFGeometry = hgchefGeoHandle.product() ; 
   const HGCalGeometry* HGCHEBGeometry = hgchebGeoHandle.product() ; 
@@ -1272,7 +1229,7 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
     
 }
 
-void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSetup){
+void runPandora::preparePFO(const edm::Event& iEvent){
     // PandoraPFANew/v00-09/include/Pandora/PandoraInternal.h
     // typedef std::set<ParticleFlowObject *> PfoList;  
     //     PandoraPFANew/v00-09/include/Api/PandoraContentApi.h
@@ -1733,12 +1690,23 @@ runPandora::endRun(edm::Run const&, edm::EventSetup const&)
 */
 
 // ------------ method called when starting to processes a luminosity block  ------------
-/*
+
 void 
-runPandora::beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&)
+runPandora::beginLuminosityBlock(edm::LuminosityBlock const& iLumiBlock, const edm::EventSetup& iSetup)
 {
+  //refresh geometry handles
+  // Get the ecal/hcal barrel geometry  
+  iSetup.get<CaloGeometryRecord>().get(geoHandle);
+  
+  // Get the HGC geometry
+  iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",hgceeGeoHandle) ; 
+  iSetup.get<IdealGeometryRecord>().get("HGCalHESiliconSensitive",hgchefGeoHandle) ; 
+  iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",hgchebGeoHandle) ; 
+
+  //prepare geom at the beginning of each lumi block
+  prepareGeometry() ;
 }
-*/
+
 
 // ------------ method called when ending the processing of a luminosity block  ------------
 /*
