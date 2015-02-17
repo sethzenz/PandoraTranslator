@@ -156,28 +156,17 @@ void PandoraCMSPFCandProducer::produce(edm::Event& iEvent, const edm::EventSetup
    resetVariables();
 
   std::cout << "Analyzing events" << std::endl ; 
-  if ( firstEvent_ ) { 
-    firstEvent_ = false ; 
-    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::ReadSettings(*m_pPandora, m_pandoraSettingsXmlFile.fullPath()));
-
-  }
 
   // std::cout << "Analyzing events 1 " << std::endl ;
 
-  edm::Handle<reco::RecoToSimCollection > rectosimCollection;
-  iEvent.getByLabel(inputTagtPRecoTrackAsssociation_, rectosimCollection);
-  const reco::RecoToSimCollection pRecoToSim = *(rectosimCollection.product());
+
     
-  ESHandle<MagneticField> magneticField;
-  iSetup.get<IdealMagneticFieldRecord>().get(magneticField);
-  //Why PF uses global point (0,0,0) for all events?
-  math::XYZVector B_(math::XYZVector(magneticField->inTesla(GlobalPoint(0,0,0))));
 
-  edm::Handle<std::vector<reco::GenParticle> > genpart;
-  iEvent.getByLabel(inputTagGenParticles_,genpart);
+  
 
-  prepareTrack(B_,pRecoToSim,iEvent);
-  preparemcParticle(genpart);
+
+  prepareTrack(iEvent);
+  preparemcParticle(iEvent);
   prepareHits(iEvent);
   //preparemcParticle(genpart); //put before prepareHits() to have mc info, for mip calib check
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::ProcessEvent(*m_pPandora));
@@ -587,7 +576,14 @@ void PandoraCMSPFCandProducer::SetMultiLayerParameters(PandoraApi::Geometry::Sub
   }
 }
 
-void PandoraCMSPFCandProducer::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollection pRecoToSim, edm::Event& iEvent){ // function to setup tracks in an event for pandora
+void PandoraCMSPFCandProducer::prepareTrack(edm::Event& iEvent){ // function to setup tracks in an event for pandora
+  //Why PF uses global point (0,0,0) for all events?
+  math::XYZVector B_(math::XYZVector(magneticField->inTesla(GlobalPoint(0,0,0))));
+
+  edm::Handle<reco::RecoToSimCollection > rectosimCollection;
+  iEvent.getByLabel(inputTagtPRecoTrackAsssociation_, rectosimCollection);
+  const reco::RecoToSimCollection pRecoToSim = *(rectosimCollection.product());
+  
   PandoraApi::Track::Parameters trackParameters;
   //We need the speed of light
   double speedoflight = (CLHEP::c_light*CLHEP::mm)/CLHEP::ns;
@@ -1139,7 +1135,7 @@ void PandoraCMSPFCandProducer::ProcessRecHits(edm::Handle<reco::PFRecHitCollecti
 }
 
 
-void PandoraCMSPFCandProducer::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > genpart){ // function to setup a mcParticle for pandora
+void PandoraCMSPFCandProducer::preparemcParticle(edm::Event& iEvent){ // function to setup a mcParticle for pandora
   // PandoraPFANew/v00-09/include/Api/PandoraApi.h
   //class MCParticleParameters
   //{
@@ -1152,7 +1148,10 @@ void PandoraCMSPFCandProducer::preparemcParticle(edm::Handle<std::vector<reco::G
   //    pandora::InputAddress           m_pParentAddress;           ///< Address of the parent MC particle in the user framework
   //};
   // for(std::vector<reco::GenParticle>::const_iterator cP = genpart->begin();  cP != genpart->end(); cP++ ) {
-      
+
+  edm::Handle<std::vector<reco::GenParticle> > genpart;
+  iEvent.getByLabel(inputTagGenParticles_,genpart);
+  
    const GenParticle * firstMCp = &(*genpart)[0];
    if (firstMCp) {
       m_firstMCpartEta = firstMCp->eta();
@@ -1289,7 +1288,7 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
   edm::Handle<std::vector<reco::GenParticle> > genpart;
   iEvent.getByLabel(inputTagGenParticles_,genpart); //NS ADD
   std::cout << " GENPART SIZE IS " << genpart->size() << std::endl;
-
+  
   Double_t found_energy = -1;
   Double_t ene_all_true = 0;
 
@@ -1397,7 +1396,8 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
             
          for (unsigned int iHit = 0; iHit < nHitsInCluster; ++iHit)
          {
-            const PFRecHit *hgcHit = (PFRecHit*)((*itCluster)[iHit]);                
+            const PFRecHit *hgcHit = (PFRecHit*)((*itCluster)[iHit]);
+            //const reco::PFRecHitRef hgcHit(HGCeeRecHitHandle,recHitMap[(*itCluster)[iHit]]);               
             const DetId& detid(hgcHit->detId());
             if (!detid)
                continue;
@@ -1551,9 +1551,7 @@ TrackingParticleRefVector PandoraCMSPFCandProducer::getTpDaughters(TrackingParti
 // ------------ method called once each job just before starting event loop  ------------
 void PandoraCMSPFCandProducer::beginJob()
 {   
-  std::cout << "I am beginning my job...LOOK!!!" << std::endl ; 
-  firstEvent_ = true ;
-
+  std::cout << "I am beginning my job...LOOK!!!" << std::endl ;
 
 // AP
   const char *pDisplay(::getenv("DISPLAY"));
@@ -1716,6 +1714,12 @@ PandoraCMSPFCandProducer::beginLuminosityBlock(edm::LuminosityBlock const& iLumi
 
   //prepare geom at the beginning of each lumi block
   prepareGeometry() ;
+
+  //get the magnetic field
+  iSetup.get<IdealMagneticFieldRecord>().get(magneticField);
+  
+  //rebuild pandora 
+  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::ReadSettings(*m_pPandora, m_pandoraSettingsXmlFile.fullPath()));
 }
 
 

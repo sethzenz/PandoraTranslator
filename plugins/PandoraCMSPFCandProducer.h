@@ -73,6 +73,7 @@ class CaloGeometryRecord;
 class IdealGeometryRecord;
 class CaloGeometry;
 class HGCalGeometry;
+class MagneticField;
 
 // namespace pandora {class Pandora;}
 
@@ -88,9 +89,9 @@ public:
 
   static pandora::Pandora        *m_pPandora;
 
-  void prepareTrack(math::XYZVector B_,const reco::RecoToSimCollection pRecoToSim,edm::Event& iEvent);
+  void prepareTrack(edm::Event& iEvent);
   void prepareHits(edm::Event& iEvent);
-  void preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > genpart);
+  void preparemcParticle(edm::Event& iEvent);
   void ProcessRecHits(edm::Handle<reco::PFRecHitCollection> PFRecHitHandle, int subdet, const CaloSubdetectorGeometry* geom, CalibCalo* calib, int& nCaloHits, int& nNotFound, reco::Vertex& pv,
                      const pandora::HitType hitType, const pandora::HitRegion hitRegion, PandoraApi::RectangularCaloHitParameters& caloHitParameters);
 
@@ -161,13 +162,14 @@ private:
   //std::vector<std::string> mFileNames;
   
   // hash tables to translate back to CMSSW collection index from Pandora
-  std::unordered_map<void*,int> recHitMap;
+  std::unordered_map<const void*,unsigned int> recHitMap;
   
   //geometry handles
   edm::ESHandle<CaloGeometry> geoHandle;
   edm::ESHandle<HGCalGeometry> hgceeGeoHandle ; 
   edm::ESHandle<HGCalGeometry> hgchefGeoHandle ; 
   edm::ESHandle<HGCalGeometry> hgchebGeoHandle ; 
+  edm::ESHandle<MagneticField> magneticField;
 
   TFile * file;
   TTree *mytree;
@@ -251,7 +253,6 @@ private:
 
   double m_muonToMip;
 
-  bool firstEvent_ ; 
   short _debugLevel;
   double speedoflight;
 
