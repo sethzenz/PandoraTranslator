@@ -95,9 +95,7 @@ PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iCon
   //mFileNames  = iConfig.getParameter<std::vector<std::string> > ("filenames"); 
   inputTagEcalRecHitsEB_ = iConfig.getParameter<InputTag>("ecalRecHitsEB");
   inputTagHcalRecHitsHBHE_ = iConfig.getParameter<InputTag>("hcalRecHitsHBHE");
-  inputTagHGCEErechit_ = iConfig.getParameter<InputTag>("HGCEErechitCollection");
-  inputTagHGCHEFrechit_ = iConfig.getParameter<InputTag>("HGCHEFrechitCollection");
-  inputTagHGCHEBrechit_ = iConfig.getParameter<InputTag>("HGCHEBrechitCollection");
+  inputTagHGCrechit_ = iConfig.getParameter<InputTag>("HGCrechitCollection");
   inputTagGeneralTracks_ = iConfig.getParameter< std::vector < InputTag > >("generaltracks");
   inputTagtPRecoTrackAsssociation_ = iConfig.getParameter<InputTag>("tPRecoTrackAsssociation");
   inputTagGenParticles_ = iConfig.getParameter<InputTag>("genParticles");
@@ -878,19 +876,15 @@ void PandoraCMSPFCandProducer::prepareHits( edm::Event& iEvent)
   // get the Calorimeter PFRecHit collections
   edm::Handle<reco::PFRecHitCollection> ecalRecHitHandleEB;
   edm::Handle<reco::PFRecHitCollection> hcalRecHitHandleHBHE;
-  edm::Handle<reco::PFRecHitCollection> HGCeeRecHitHandle;
-  edm::Handle<reco::PFRecHitCollection> HGChefRecHitHandle;
-  edm::Handle<reco::PFRecHitCollection> HGChebRecHitHandle;
+  edm::Handle<reco::PFRecHitCollection> HGCRecHitHandle;
 
   bool found = iEvent.getByLabel(inputTagEcalRecHitsEB_, ecalRecHitHandleEB) && 
     iEvent.getByLabel(inputTagHcalRecHitsHBHE_, hcalRecHitHandleHBHE) && 
-    iEvent.getByLabel(inputTagHGCEErechit_, HGCeeRecHitHandle) && 
-    iEvent.getByLabel(inputTagHGCHEFrechit_, HGChefRecHitHandle) && 
-    iEvent.getByLabel(inputTagHGCHEBrechit_, HGChebRecHitHandle);
+    iEvent.getByLabel(inputTagHGCrechit_, HGCRecHitHandle);
 	
   if(!found ) {
     std::ostringstream err;
-    err<<"cannot find rechits: "<< HGCeeRecHitHandle.isValid() << "," << HGChefRecHitHandle.isValid() << "," << HGChebRecHitHandle.isValid() ;
+    err<<"cannot find rechits: "<< HGCRecHitHandle.isValid();
     LogError("PandoraCMSPFCandProducer")<<err.str()<<std::endl;
     throw cms::Exception( "MissingProduct", err.str());
   } 
@@ -941,19 +935,19 @@ void PandoraCMSPFCandProducer::prepareHits( edm::Event& iEvent)
   // Process HGC EE rec hits 
   // 
   int nNotFoundEE = 0, nCaloHitsEE = 0 ; 
-  ProcessRecHits(HGCeeRecHitHandle, 3, HGCEEGeometry, m_calibEE, nCaloHitsEE, nNotFoundEE, pv, pandora::ECAL, pandora::ENDCAP, caloHitParameters);
+  ProcessRecHits(HGCRecHitHandle, 3, HGCEEGeometry, m_calibEE, nCaloHitsEE, nNotFoundEE, pv, pandora::ECAL, pandora::ENDCAP, caloHitParameters);
 
   //
   // Process HGC HEF rec hits 
   // 
   int nNotFoundHEF = 0, nCaloHitsHEF = 0 ; 
-  ProcessRecHits(HGChefRecHitHandle, 4, HGCHEFGeometry, m_calibHEF, nCaloHitsHEF, nNotFoundHEF, pv, pandora::HCAL, pandora::ENDCAP, caloHitParameters);
+  ProcessRecHits(HGCRecHitHandle, 4, HGCHEFGeometry, m_calibHEF, nCaloHitsHEF, nNotFoundHEF, pv, pandora::HCAL, pandora::ENDCAP, caloHitParameters);
 
   //
   // Process HGC HEB rec hits 
   // 
   int nNotFoundHEB = 0, nCaloHitsHEB = 0 ; 
-  ProcessRecHits(HGChebRecHitHandle, 5, HGCHEBGeometry, m_calibHEB, nCaloHitsHEB, nNotFoundHEB, pv, pandora::HCAL, pandora::ENDCAP, caloHitParameters);
+  ProcessRecHits(HGCRecHitHandle, 5, HGCHEBGeometry, m_calibHEB, nCaloHitsHEB, nNotFoundHEB, pv, pandora::HCAL, pandora::ENDCAP, caloHitParameters);
 
   h_sumCaloE->Fill(sumCaloEnergy);
   h_sumCaloEM->Fill(sumCaloEnergyEM);
@@ -1007,18 +1001,18 @@ void PandoraCMSPFCandProducer::ProcessRecHits(edm::Handle<reco::PFRecHitCollecti
     const DetId detid(rh->detId());
     double energy = rh->energy() * calib->GetADC2GeV();
     
-    if (energy < calib->m_CalThresh) return;
+    if (energy < calib->m_CalThresh) continue;
     
     double time = rh->time();
     // std::cout << "energy " << energy <<  " time " << time <<std::endl;
     
-    if (detid.subdetId() != isubdet) return;
+    if (detid.subdetId() != isubdet) continue;
     
     const CaloCellGeometry *thisCell = geom->getGeometry(detid);
     if(!thisCell) {
         LogError("PandoraCMSPFCandProducerPrepareHits") << "warning detid " << detid.rawId() << " not found in geometry" << std::endl;
         nNotFound++;
-        return;
+        continue;
     }
     
     unsigned int layer = 0;
@@ -1135,7 +1129,7 @@ void PandoraCMSPFCandProducer::ProcessRecHits(edm::Handle<reco::PFRecHitCollecti
     }
     else if (caloHitParameters.m_mipEquivalentEnergy.Get() < calib->m_CalMipThresh) {
        //std::cout << "EcalBarrel MIP threshold rejected" << std::endl;
-       return;
+       continue;
     }
     
     sumCaloEnergy += energy;
@@ -1328,6 +1322,10 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
   edm::Handle<std::vector<reco::GenParticle> > genpart;
   iEvent.getByLabel(inputTagGenParticles_,genpart); //NS ADD
   std::cout << " GENPART SIZE IS " << genpart->size() << std::endl;
+
+  // get the Calorimeter PFRecHit collections
+  edm::Handle<reco::PFRecHitCollection> HGCRecHitHandle;
+  iEvent.getByLabel(inputTagHGCrechit_, HGCRecHitHandle);
   
   Double_t found_energy = -1;
   Double_t ene_all_true = 0;
@@ -1436,8 +1434,8 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
             
          for (unsigned int iHit = 0; iHit < nHitsInCluster; ++iHit)
          {
-            const PFRecHit *hgcHit = (PFRecHit*)((*itCluster)[iHit]);
-            //const reco::PFRecHitRef hgcHit(HGCeeRecHitHandle,recHitMap[(*itCluster)[iHit]]);               
+            //const PFRecHit *hgcHit = (PFRecHit*)((*itCluster)[iHit]);
+            const reco::PFRecHitRef hgcHit(HGCRecHitHandle,recHitMap[(*itCluster)[iHit]]);               
             const DetId& detid(hgcHit->detId());
             if (!detid)
                continue;

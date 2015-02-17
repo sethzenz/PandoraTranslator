@@ -154,9 +154,7 @@ private:
   // ----------access to event data
   edm::InputTag    inputTagEcalRecHitsEB_ ; 
   edm::InputTag    inputTagHcalRecHitsHBHE_ ; 
-  edm::InputTag    inputTagHGCEErechit_;
-  edm::InputTag    inputTagHGCHEFrechit_;
-  edm::InputTag    inputTagHGCHEBrechit_;
+  edm::InputTag    inputTagHGCrechit_;
   edm::InputTag    inputTagtPRecoTrackAsssociation_;
   edm::InputTag    inputTagGenParticles_;
   std::vector<edm::InputTag>  inputTagGeneralTracks_;
@@ -286,7 +284,8 @@ class CalibCalo {
     double m_Calibr_ADC2GeV;
     double m_EM_addCalibr;
     double m_HAD_addCalibr;
-	unsigned int m_TotalLayers;
+    std::string m_name;
+    unsigned int m_TotalLayers;
     std::vector<double> nCellInteractionLengths;
     std::vector<double> nCellRadiationLengths;
 };
@@ -296,8 +295,9 @@ class CalibHGC : public CalibCalo {
   public:
     //constructor
     CalibHGC(PandoraCMSPFCandProducer::subdet id, std::string name, std::string energyCorrMethod, steerManager *stm)
-            : CalibCalo(id), initialized(false), m_name(name), m_energyCorrMethod(energyCorrMethod), m_stm(stm)
+            : CalibCalo(id), initialized(false), m_energyCorrMethod(energyCorrMethod), m_stm(stm)
     {
+      m_name = name;
 	  m_stm_nameLayer = "layerSet_" + m_name;
 	  m_stm_nameEM = "energyWeight_EM_" + m_name;
 	  m_stm_nameHAD = "energyWeight_HAD_" + m_name;
@@ -355,7 +355,6 @@ class CalibHGC : public CalibCalo {
     
     //member variables
 	bool initialized;
-	std::string m_name;
     std::string m_energyCorrMethod;
     steerManager * m_stm;
 	std::string m_stm_nameLayer, m_stm_nameEM, m_stm_nameHAD;
