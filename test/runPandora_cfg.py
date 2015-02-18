@@ -64,6 +64,8 @@ process.source = cms.Source("PoolSource",
 
 process.source.skipEvents = cms.untracked.uint32(0)
 
+process.load('SimGeneral.MixingModule.mixNoPU_cfi')                                                                                                                               
+process.load("Configuration.StandardSequences.Reconstruction_cff")
 process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHGCEE_cfi")
 process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitECAL_cfi")
 process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHBHE_cfi")
@@ -99,9 +101,12 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
     outputFile = cms.string('pandoraoutput.root')
 )
 
+process.reconstruction_step = cms.Path(process.particleFlowRecHitHGCEE*
+                                       process.particleFlowRecHitHBHE*
+                                       process.particleFlowRecHitECAL*
+                                       process.trackingParticleRecoTrackAsssociation*
+                                       process.pandorapfanew)
+process.schedule = cms.Schedule(process.reconstruction_step)
+from SLHCUpgradeSimulations.Configuration.combinedCustoms import cust_2023HGCalMuon
+process = cust_2023HGCalMuon(process)
 
-process.p = cms.Path(process.particleFlowRecHitHGCEE*
-                     process.particleFlowRecHitHBHE*
-                     process.particleFlowRecHitHGCEE*
-                     process.trackingParticleRecoTrackAsssociation*
-                     process.pandorapfanew)
