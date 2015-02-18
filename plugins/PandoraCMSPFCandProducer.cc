@@ -912,16 +912,31 @@ void PandoraCMSPFCandProducer::prepareHits( edm::Event& iEvent)
   edm::Handle<reco::PFRecHitCollection> hcalRecHitHandleHBHE;
   edm::Handle<reco::PFRecHitCollection> HGCRecHitHandle;
 
-  bool found = iEvent.getByLabel(inputTagEcalRecHitsEB_, ecalRecHitHandleEB) && 
-    iEvent.getByLabel(inputTagHcalRecHitsHBHE_, hcalRecHitHandleHBHE) && 
-    iEvent.getByLabel(inputTagHGCrechit_, HGCRecHitHandle);
-	
+  bool found = iEvent.getByLabel(inputTagEcalRecHitsEB_, ecalRecHitHandleEB);	
   if(!found ) {
     std::ostringstream err;
-    err<<"cannot find rechits: "<< HGCRecHitHandle.isValid();
+    err<<"cannot find rechits: "<< inputTagEcalRecHitsEB_;
     LogError("PandoraCMSPFCandProducer")<<err.str()<<std::endl;
     throw cms::Exception( "MissingProduct", err.str());
   } 
+
+  found = iEvent.getByLabel(inputTagHcalRecHitsHBHE_, hcalRecHitHandleHBHE);
+
+  if(!found ) {
+    std::ostringstream err;
+    err<<"cannot find rechits: "<< inputTagHcalRecHitsHBHE_;
+    LogError("PandoraCMSPFCandProducer")<<err.str()<<std::endl;
+    throw cms::Exception( "MissingProduct", err.str());
+  }
+
+  found = iEvent.getByLabel(inputTagHGCrechit_, HGCRecHitHandle);
+
+  if(!found ) {
+    std::ostringstream err;
+    err<<"cannot find rechits: "<< inputTagHGCrechit_;
+    LogError("PandoraCMSPFCandProducer")<<err.str()<<std::endl;
+    throw cms::Exception( "MissingProduct", err.str());
+  }
 
   PandoraApi::RectangularCaloHitParameters caloHitParameters;
 
