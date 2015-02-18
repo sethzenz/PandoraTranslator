@@ -53,6 +53,7 @@
 #include "TVirtualX.h"
 #include "TROOT.h"
 #include "TRint.h"
+#include "TGraphErrors.h"
  
 #include <fstream>
 #include <iostream>
@@ -105,6 +106,8 @@ PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iCon
   m_energyCorrMethod = iConfig.getParameter<std::string>("energyCorrMethod");
   m_energyWeightingFilename  = iConfig.getParameter<edm::FileInPath>("energyWeightFile");
   m_layerDepthFilename = iConfig.getParameter<edm::FileInPath>("layerDepthFile");
+  m_overburdenDepthFilename = iConfig.getParameter<edm::FileInPath>("overburdenDepthFile");
+  m_useOverburdenCorrection = iConfig.getParameter<bool>("useOverburdenCorrection");
   _outputFileName = iConfig.getParameter<std::string>("outputFile");
 
   stm = new steerManager(m_energyWeightingFilename.fullPath().c_str());
@@ -417,11 +420,42 @@ void PandoraCMSPFCandProducer::prepareGeometry(){ // function to setup a geometr
 	}
 	//close file
 	file->Close();
+	//set calibration layers: EE*2* for EE, HEF1 for HEF and HEB
+	m_calibEE->calibrationRadiationLength = m_calibEE->nCellRadiationLengths[2];
+	m_calibEE->calibrationInteractionLength = m_calibEE->nCellInteractionLengths[2];
+	m_calibHEF->calibrationRadiationLength = m_calibHEF->nCellRadiationLengths[1];
+	m_calibHEF->calibrationInteractionLength = m_calibHEF->nCellInteractionLengths[1];
+	m_calibHEB->calibrationRadiationLength = m_calibHEF->nCellRadiationLengths[1];
+	m_calibHEB->calibrationInteractionLength = m_calibHEF->nCellInteractionLengths[1];
+	
+	//open ROOT file with graphs containing overburden depths vs eta
+	//(for HGCEE layer 1 eta-dependent depth correction)
+	file = TFile::Open(m_overburdenDepthFilename.fullPath().c_str(),"READ");
+	TGraphErrors* g_x0 = (TGraphErrors*)file->Get("x0Overburden");
+	TGraphErrors* g_lambda = (TGraphErrors*)file->Get("lambdaOverburden");
+	double *x_x0, *xe_x0, *y_x0, *x_lambda, *xe_lambda, *y_lambda;
+	x_x0 = g_x0->GetX();
+	xe_x0 = g_x0->GetEX();
+	y_x0 = g_x0->GetY();
+	x_lambda = g_lambda->GetX();
+	xe_lambda = g_lambda->GetEX();
+	y_lambda = g_lambda->GetY();
+	int nbins = g_x0->GetN();
+	//fill map with low x edges and y values
+	for(int i = 0; i < nbins; i++){
+		m_calibEE->nOverburdenRadiationLengths[x_x0[i] - xe_x0[i]] = y_x0[i];
+		m_calibEE->nOverburdenInteractionLengths[x_lambda[i] - xe_lambda[i]] = y_lambda[i];
+	}
+	//close file
+	file->Close();
+
+	//toggle use of overburden corrections
+	m_calibEE->useOverburdenCorrection = m_useOverburdenCorrection;
 	
 	//initialize corrections after getting all calibrations (in beginJob) and layer depths
     m_calibEE->initialize();
     m_calibHEF->initialize();
-    m_calibHEB->initialize();	
+    m_calibHEB->initialize();
 	
   }
   
@@ -999,6 +1033,7 @@ void PandoraCMSPFCandProducer::ProcessRecHits(edm::Handle<reco::PFRecHitCollecti
   for(unsigned i=0; i<PFRecHitHandle->size(); i++) {
     const reco::PFRecHit* rh = &(*PFRecHitHandle)[i];
     const DetId detid(rh->detId());
+	double eta = fabs(rh->position().Eta());
     double cos_theta = std::tanh(rh->position().Eta());
     double energy = rh->energy() * cos_theta * calib->GetADC2GeV(); // cos_theta because CMS returns units of MIPs assuming normal angle
     
@@ -1086,8 +1121,8 @@ void PandoraCMSPFCandProducer::ProcessRecHits(edm::Handle<reco::PFRecHitCollecti
     caloHitParameters.m_hitType = hitType;
     caloHitParameters.m_hitRegion = hitRegion;
     caloHitParameters.m_inputEnergy = energy;
-    caloHitParameters.m_electromagneticEnergy = calib->GetEMCalib(layer) * energy;
-    caloHitParameters.m_hadronicEnergy = calib->GetHADCalib(layer) * energy; // = energy; 
+    caloHitParameters.m_electromagneticEnergy = calib->GetEMCalib(layer,eta) * energy;
+    caloHitParameters.m_hadronicEnergy = calib->GetHADCalib(layer,eta) * energy; // = energy; 
     caloHitParameters.m_mipEquivalentEnergy = calib->m_CalToMip * energy;
     
     if(hitRegion==pandora::ENDCAP){
@@ -1440,23 +1475,24 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
             const DetId& detid(hgcHit->detId());
             if (!detid)
                continue;
-	    double cos_theta = std::tanh(hgcHit->position().Eta()); // cos_theta because CMS returns units of MIPs assuming normal angle
+            double eta = fabs(hgcHit->position().Eta());
+            double cos_theta = std::tanh(hgcHit->position().Eta()); // cos_theta because CMS returns units of MIPs assuming normal angle
       
             ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
             if (thesubdet == 3) {
               int layer = (int) ((HGCEEDetId)(detid)).layer() ;
-                clusterEMenergyECAL += hgcHit->energy() * cos_theta * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
-                clusterHADenergyECAL += hgcHit->energy() * cos_theta * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
+                clusterEMenergyECAL += hgcHit->energy() * cos_theta * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer,eta);
+                clusterHADenergyECAL += hgcHit->energy() * cos_theta * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer,eta);
             }
             else if (thesubdet == 4) {
               int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-              clusterEMenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEF->GetADC2GeV() * m_calibHEF->GetEMCalib(layer);
-                clusterHADenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
+              clusterEMenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEF->GetADC2GeV() * m_calibHEF->GetEMCalib(layer,eta);
+              clusterHADenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer,eta);
             }
             else if (thesubdet == 5) {
               int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-              clusterEMenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEB->GetADC2GeV() * m_calibHEB->GetEMCalib(layer);
-                clusterHADenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
+              clusterEMenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEB->GetADC2GeV() * m_calibHEB->GetEMCalib(layer,eta);
+              clusterHADenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer,eta);
             }
             else {
             }

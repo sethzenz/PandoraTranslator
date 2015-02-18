@@ -92,6 +92,8 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
 
     calibrParFile = cms.FileInPath('HGCal/PandoraTranslator/data/pandoraCalibrPars.txt'),
     layerDepthFile = cms.FileInPath('HGCal/PandoraTranslator/data/HGCmaterial_v5.root'),
+    overburdenDepthFile = cms.FileInPath('RecoParticleFlow/PFClusterProducer/data/HGCMaterialOverburden.root'),
+    useOverburdenCorrection = cms.bool(False), #disabled until the overburden values make sense
     outputFile = cms.string('pandoraoutput.root')
 )
 
