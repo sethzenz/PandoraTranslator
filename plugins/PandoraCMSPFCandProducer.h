@@ -49,6 +49,7 @@
 
 #include "DataFormats/RecoCandidate/interface/TrackAssociation.h"
 #include "DataFormats/HGCRecHit/interface/HGCRecHitCollections.h"
+#include "DataFormats/ForwardDetId/interface/ForwardSubdetector.h"
 
 #include "DataFormats/VertexReco/interface/Vertex.h"
 
@@ -68,7 +69,6 @@
 //
 // class declaration
 //
-class CalibCalo;
 class CaloGeometryRecord;
 class IdealGeometryRecord;
 class CaloGeometry;
@@ -77,11 +77,139 @@ class MagneticField;
 
 // namespace pandora {class Pandora;}
 
+//helper class to store calibration info for HGC
+class CalibHGC {
+  public:
+    //constructor
+    CalibHGC(ForwardSubdetector id, std::string name) : m_id(id), m_name(name), initialized(false)
+    {
+      m_name = name;
+	  m_stm_nameLayer = "layerSet_" + m_name;
+	  m_stm_nameEM = "energyWeight_EM_" + m_name;
+	  m_stm_nameHAD = "energyWeight_HAD_" + m_name;
+      //skip layer 0 in all vectors
+	  nCellInteractionLengths.push_back(0.);
+      nCellRadiationLengths.push_back(0.);
+	  m_absorberCorrectionEM.push_back(1.);
+      m_absorberCorrectionHAD.push_back(1.);
+	  m_energyWeightEM.push_back(1.);
+	  m_energyWeightHAD.push_back(1.);
+	}
+    //destructor
+    virtual ~CalibHGC() {}
+    
+    //accessors
+    virtual double GetADC2GeV() { return m_Calibr_ADC2GeV; }
+    virtual double GetEMCalib(unsigned int layer, double eta) { 
+      if(layer>m_TotalLayers) return 1.;
+      
+      if(m_energyCorrMethod == "ABSCORR"){
+        return m_CalToEMGeV * GetAbsCorrEM(layer,eta) * m_EM_addCalibr;
+      }
+      else if(m_energyCorrMethod == "WEIGHTING"){
+        return m_CalToEMGeV * m_energyWeightEM[layer] * m_CalToMip;
+      }
+      else return 1.;
+    }
+    virtual double GetHADCalib(unsigned int layer, double eta) {
+      if(layer>m_TotalLayers) return 1.;
+      
+      if(m_energyCorrMethod == "ABSCORR"){
+        return m_CalToHADGeV * GetAbsCorrHAD(layer,eta) * m_HAD_addCalibr;
+      }
+      else if(m_energyCorrMethod == "WEIGHTING"){
+        return m_CalToHADGeV * m_energyWeightHAD[layer] * m_CalToMip;
+      }
+      else return 1.;
+    }
+    virtual double GetAbsCorrEM(unsigned int layer, double eta){
+      if(layer==1 && m_id==ForwardSubdetector::HGCEE && useOverburdenCorrection){
+        //lower bound: first element in map with key >= name
+        typename std::map<double,double>::iterator lb = nOverburdenRadiationLengths.lower_bound(eta);
+        if(lb != nOverburdenRadiationLengths.begin()) lb--;
+        if(lb != nOverburdenRadiationLengths.end()){
+          return (nCellRadiationLengths[layer] + lb->second)/calibrationRadiationLength;
+        }
+		else return 1.;
+      }
+      else return m_absorberCorrectionEM[layer];
+    }
+	virtual double GetAbsCorrHAD(unsigned int layer, double eta){
+      if(layer==1 && m_id==ForwardSubdetector::HGCEE && useOverburdenCorrection){
+        //lower bound: first element in map with key >= name
+        typename std::map<double,double>::iterator lb = m_absorberCorrectionHADeta.lower_bound(eta);
+        if(lb != m_absorberCorrectionHADeta.begin()) lb--;
+        if(lb != m_absorberCorrectionHADeta.end()){
+          return lb->second;
+        }
+		else return 1.;
+      }
+      else return m_absorberCorrectionHAD[layer];
+    }
+    
+    //helper functions
+    virtual void initialize() {
+	  if(initialized) return;
+      getLayerProperties();
+	  initialized = true;
+    }
+    virtual void getLayerProperties() {
+      for(unsigned layer = 1; layer <= m_TotalLayers; layer++){        
+        m_absorberCorrectionEM.push_back(nCellRadiationLengths[layer]/calibrationRadiationLength);
+        m_absorberCorrectionHAD.push_back(nCellInteractionLengths[layer]/calibrationInteractionLength);
+		std::cout << m_name << ": absCorrEM = " << m_absorberCorrectionEM.back() << ", absCorrHAD = " << m_absorberCorrectionHAD.back() << std::endl;
+        
+        m_energyWeightEM.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameEM));
+        m_energyWeightHAD.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameHAD));
+      }
+	  //eta-dependent correction for EE layer 1
+	  if(m_id==ForwardSubdetector::HGCEE && useOverburdenCorrection){
+	    typename std::map<double,double>::iterator EMit = nOverburdenRadiationLengths.begin();
+	    typename std::map<double,double>::iterator HADit = nOverburdenInteractionLengths.begin();
+		for(; EMit != nOverburdenRadiationLengths.end(); EMit++){
+          m_absorberCorrectionEMeta[EMit->first] = (nCellRadiationLengths[1] + EMit->second)/calibrationRadiationLength;
+          m_absorberCorrectionHADeta[HADit->first] = (nCellInteractionLengths[1] + HADit->second)/calibrationInteractionLength;
+		  std::cout << m_name << ": eta = " << EMit->first << ", absCorrEM = " << m_absorberCorrectionEMeta[EMit->first] << ", absCorrHAD = " << m_absorberCorrectionHADeta[HADit->first] << std::endl;
+		  HADit++;
+		}
+	  }
+	}
+    
+    //member variables
+	ForwardSubdetector m_id;
+	std::string m_name;
+	bool initialized;
+    std::string m_energyCorrMethod;
+    steerManager * m_stm;
+	std::string m_stm_nameLayer, m_stm_nameEM, m_stm_nameHAD;
+    double m_CalThresh;
+    double m_CalMipThresh;
+    double m_CalToMip;
+    double m_CalToEMGeV;
+    double m_CalToHADGeV;
+    double m_Calibr_ADC2GeV;
+    double m_EM_addCalibr;
+    double m_HAD_addCalibr;
+    unsigned int m_TotalLayers;
+    std::vector<double> nCellInteractionLengths;
+    std::vector<double> nCellRadiationLengths;
+	double calibrationInteractionLength;
+	double calibrationRadiationLength;
+	std::map<double,double> nOverburdenInteractionLengths;
+	std::map<double,double> nOverburdenRadiationLengths;
+	bool useOverburdenCorrection;
+    std::vector<double> m_absorberCorrectionEM;
+    std::vector<double> m_absorberCorrectionHAD;
+    std::map<double,double> m_absorberCorrectionEMeta;
+    std::map<double,double> m_absorberCorrectionHADeta;
+    std::vector<double> m_energyWeightEM;
+    std::vector<double> m_energyWeightHAD;
+
+};
+
+
 class PandoraCMSPFCandProducer : public edm::EDProducer {
 public:
-  //enum for subdet types
-  enum subdet { EB = 1, HB = 2, EE = 3, HEF = 4, HEB = 5 };
-
   explicit PandoraCMSPFCandProducer(const edm::ParameterSet&);
   ~PandoraCMSPFCandProducer();
 
@@ -92,7 +220,7 @@ public:
   void prepareTrack(edm::Event& iEvent);
   void prepareHits(edm::Event& iEvent);
   void preparemcParticle(edm::Event& iEvent);
-  void ProcessRecHits(edm::Handle<reco::PFRecHitCollection> PFRecHitHandle, int subdet, const CaloSubdetectorGeometry* geom, CalibCalo* calib, int& nCaloHits, int& nNotFound, reco::Vertex& pv,
+  void ProcessRecHits(const reco::PFRecHit* rh, unsigned int index, const HGCalGeometry* geom, CalibHGC& calib, int& nCaloHits, int& nNotFound, reco::Vertex& pv,
                      const pandora::HitType hitType, const pandora::HitRegion hitRegion, PandoraApi::RectangularCaloHitParameters& caloHitParameters);
 
   
@@ -106,7 +234,7 @@ public:
                                       const double& min_innerRadius, const double& max_outerRadius, const double& min_innerZ, const double& max_outerZ) const;
   void SetSingleLayerParameters(PandoraApi::Geometry::SubDetector::Parameters &parameters, PandoraApi::Geometry::LayerParameters &layerParameters) const;
   void SetMultiLayerParameters(PandoraApi::Geometry::SubDetector::Parameters &parameters, std::vector<PandoraApi::Geometry::LayerParameters*> &layerParameters,
-                               std::vector<double>& min_innerR_depth, std::vector<double>& min_innerZ_depth, const unsigned int& nTotalLayers, CalibCalo* calib) const;
+                               std::vector<double>& min_innerR_depth, std::vector<double>& min_innerZ_depth, const unsigned int& nTotalLayers, CalibHGC& calib) const;
                                          
   TrackingParticleRefVector getTpSiblings(TrackingParticleRef tp);
   TrackingParticleRefVector getTpDaughters(TrackingParticleRef tp);
@@ -135,12 +263,12 @@ private:
 
   virtual void resetVariables() {
      for (int il=0; il<100; il++) {
-        m_hitEperLayer_EM[subdet::EE][il] = 0.;
-        m_hitEperLayer_EM[subdet::HEF][il] = 0.;
-        m_hitEperLayer_EM[subdet::HEB][il] = 0.;
-        m_hitEperLayer_HAD[subdet::EE][il] = 0.;
-        m_hitEperLayer_HAD[subdet::HEF][il] = 0.;
-        m_hitEperLayer_HAD[subdet::HEB][il] = 0.;    
+        m_hitEperLayer_EM[ForwardSubdetector::HGCEE][il] = 0.;
+        m_hitEperLayer_EM[ForwardSubdetector::HGCHEF][il] = 0.;
+        m_hitEperLayer_EM[ForwardSubdetector::HGCHEB][il] = 0.;
+        m_hitEperLayer_HAD[ForwardSubdetector::HGCEE][il] = 0.;
+        m_hitEperLayer_HAD[ForwardSubdetector::HGCHEF][il] = 0.;
+        m_hitEperLayer_HAD[ForwardSubdetector::HGCHEB][il] = 0.;    
      }
   };
 
@@ -154,8 +282,6 @@ private:
   // ----------member data ---------------------------
 
   // ----------access to event data
-  edm::InputTag    inputTagEcalRecHitsEB_ ; 
-  edm::InputTag    inputTagHcalRecHitsHBHE_ ; 
   edm::InputTag    inputTagHGCrechit_;
   edm::InputTag    inputTagtPRecoTrackAsssociation_;
   edm::InputTag    inputTagGenParticles_;
@@ -209,17 +335,17 @@ private:
   TH1F * h_simDir_sumCaloEM ;//take only hits in sim part. direction
   TH1F * h_simDir_sumCaloHad;//take only hits in sim part. direction
 
-  std::map<subdet,TH1F*> h_MIP ;
-  std::map<subdet,TH1F*> h_MIP_Corr ;
+  std::map<ForwardSubdetector,TH1F*> h_MIP ;
+  std::map<ForwardSubdetector,TH1F*> h_MIP_Corr ;
   TH1F * h_MCp_Eta;
   TH1F * h_MCp_Phi;
   TH1F * h_hit_Eta;
   TH1F * h_hit_Phi;
 
-  std::map<subdet,TH1F*> h_hitEperLayer_EM;
-  std::map<subdet,double*> m_hitEperLayer_EM;
-  std::map<subdet,TH1F*> h_hitEperLayer_HAD;
-  std::map<subdet,double*> m_hitEperLayer_HAD;
+  std::map<ForwardSubdetector,TH1F*> h_hitEperLayer_EM;
+  std::map<ForwardSubdetector,double*> m_hitEperLayer_EM;
+  std::map<ForwardSubdetector,TH1F*> h_hitEperLayer_HAD;
+  std::map<ForwardSubdetector,double*> m_hitEperLayer_HAD;
 
   TH2F * h2_Calo_EM_hcalEecalE;
   TH2F * h2_Calo_Had_hcalEecalE;
@@ -242,7 +368,7 @@ private:
   
   //-------------- energy weighting ------------------
   unsigned int nHGCeeLayers, nHGChefLayers, nHGChebLayers; 
-  CalibCalo *m_calibEB, *m_calibHB, *m_calibEE, *m_calibHEF, *m_calibHEB;
+  CalibHGC m_calibEE, m_calibHEF, m_calibHEB;
   
   double  offSet_EM;
   double  offSet_Had;
@@ -257,155 +383,5 @@ private:
   bool calibInitialized;
   short _debugLevel;
   double speedoflight;
-
-};
-
-//helper class to store calibration info
-class CalibCalo {
-  public:
-    //constructor
-    CalibCalo(PandoraCMSPFCandProducer::subdet id) : m_id(id) {}
-    //destructor
-    virtual ~CalibCalo() {}
-    
-    //helper functions
-    virtual void initialize() {};
-    
-    //accessors
-    virtual double GetADC2GeV() { return 1.; }
-    virtual double GetEMCalib(unsigned int layer, double eta) { return m_CalToEMGeV; }
-    virtual double GetHADCalib(unsigned int layer, double eta) { return m_CalToHADGeV; }
-    
-    //member variables
-    PandoraCMSPFCandProducer::subdet m_id;
-    double m_CalThresh;
-    double m_CalMipThresh;
-    double m_CalToMip;
-    double m_CalToEMGeV;
-    double m_CalToHADGeV;
-    double m_Calibr_ADC2GeV;
-    double m_EM_addCalibr;
-    double m_HAD_addCalibr;
-    std::string m_name;
-    unsigned int m_TotalLayers;
-    std::vector<double> nCellInteractionLengths;
-    std::vector<double> nCellRadiationLengths;
-	double calibrationInteractionLength;
-	double calibrationRadiationLength;
-	std::map<double,double> nOverburdenInteractionLengths;
-	std::map<double,double> nOverburdenRadiationLengths;
-	bool useOverburdenCorrection;
-};
-
-//extension for HGC
-class CalibHGC : public CalibCalo {
-  public:
-    //constructor
-    CalibHGC(PandoraCMSPFCandProducer::subdet id, std::string name, std::string energyCorrMethod, steerManager *stm)
-            : CalibCalo(id), initialized(false), m_energyCorrMethod(energyCorrMethod), m_stm(stm)
-    {
-      m_name = name;
-	  m_stm_nameLayer = "layerSet_" + m_name;
-	  m_stm_nameEM = "energyWeight_EM_" + m_name;
-	  m_stm_nameHAD = "energyWeight_HAD_" + m_name;
-      //skip layer 0 in all vectors
-	  nCellInteractionLengths.push_back(0.);
-      nCellRadiationLengths.push_back(0.);
-	  m_absorberCorrectionEM.push_back(1.);
-      m_absorberCorrectionHAD.push_back(1.);
-	  m_energyWeightEM.push_back(1.);
-	  m_energyWeightHAD.push_back(1.);
-	}
-    //destructor
-    virtual ~CalibHGC() {}
-    
-    //accessors
-    virtual double GetADC2GeV() { return m_Calibr_ADC2GeV; }
-    virtual double GetEMCalib(unsigned int layer, double eta) { 
-      if(layer>m_TotalLayers) return 1.;
-      
-      if(m_energyCorrMethod == "ABSCORR"){
-        return m_CalToEMGeV * GetAbsCorrEM(layer,eta) * m_EM_addCalibr;
-      }
-      else if(m_energyCorrMethod == "WEIGHTING"){
-        return m_CalToEMGeV * m_energyWeightEM[layer] * m_CalToMip;
-      }
-      else return 1.;
-    }
-    virtual double GetHADCalib(unsigned int layer, double eta) {
-      if(layer>m_TotalLayers) return 1.;
-      
-      if(m_energyCorrMethod == "ABSCORR"){
-        return m_CalToHADGeV * GetAbsCorrHAD(layer,eta) * m_HAD_addCalibr;
-      }
-      else if(m_energyCorrMethod == "WEIGHTING"){
-        return m_CalToHADGeV * m_energyWeightHAD[layer] * m_CalToMip;
-      }
-      else return 1.;
-    }
-    virtual double GetAbsCorrEM(unsigned int layer, double eta){
-      if(layer==1 && m_id==PandoraCMSPFCandProducer::subdet::EE && useOverburdenCorrection){
-        //lower bound: first element in map with key >= name
-        typename std::map<double,double>::iterator lb = nOverburdenRadiationLengths.lower_bound(eta);
-        if(lb != nOverburdenRadiationLengths.begin()) lb--;
-        if(lb != nOverburdenRadiationLengths.end()){
-          return (nCellRadiationLengths[layer] + lb->second)/calibrationRadiationLength;
-        }
-		else return 1.;
-      }
-      else return m_absorberCorrectionEM[layer];
-    }
-	virtual double GetAbsCorrHAD(unsigned int layer, double eta){
-      if(layer==1 && m_id==PandoraCMSPFCandProducer::subdet::EE && useOverburdenCorrection){
-        //lower bound: first element in map with key >= name
-        typename std::map<double,double>::iterator lb = m_absorberCorrectionHADeta.lower_bound(eta);
-        if(lb != m_absorberCorrectionHADeta.begin()) lb--;
-        if(lb != m_absorberCorrectionHADeta.end()){
-          return lb->second;
-        }
-		else return 1.;
-      }
-      else return m_absorberCorrectionHAD[layer];
-    }
-    
-    //helper functions
-    virtual void initialize() {
-	  if(initialized) return;
-      getLayerProperties();
-	  initialized = true;
-    }
-    virtual void getLayerProperties() {
-      for(unsigned layer = 1; layer <= m_TotalLayers; layer++){        
-        m_absorberCorrectionEM.push_back(nCellRadiationLengths[layer]/calibrationRadiationLength);
-        m_absorberCorrectionHAD.push_back(nCellInteractionLengths[layer]/calibrationInteractionLength);
-		std::cout << m_name << ": absCorrEM = " << m_absorberCorrectionEM.back() << ", absCorrHAD = " << m_absorberCorrectionHAD.back() << std::endl;
-        
-        m_energyWeightEM.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameEM));
-        m_energyWeightHAD.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameHAD));
-      }
-	  //eta-dependent correction for EE layer 1
-	  if(m_id==PandoraCMSPFCandProducer::subdet::EE && useOverburdenCorrection){
-	    typename std::map<double,double>::iterator EMit = nOverburdenRadiationLengths.begin();
-	    typename std::map<double,double>::iterator HADit = nOverburdenInteractionLengths.begin();
-		for(; EMit != nOverburdenRadiationLengths.end(); EMit++){
-          m_absorberCorrectionEMeta[EMit->first] = (nCellRadiationLengths[1] + EMit->second)/calibrationRadiationLength;
-          m_absorberCorrectionHADeta[HADit->first] = (nCellInteractionLengths[1] + HADit->second)/calibrationInteractionLength;
-		  std::cout << m_name << ": eta = " << EMit->first << ", absCorrEM = " << m_absorberCorrectionEMeta[EMit->first] << ", absCorrHAD = " << m_absorberCorrectionHADeta[HADit->first] << std::endl;
-		  HADit++;
-		}
-	  }
-	}
-    
-    //member variables
-	bool initialized;
-    std::string m_energyCorrMethod;
-    steerManager * m_stm;
-	std::string m_stm_nameLayer, m_stm_nameEM, m_stm_nameHAD;
-    std::vector<double> m_absorberCorrectionEM;
-    std::vector<double> m_absorberCorrectionHAD;
-    std::map<double,double> m_absorberCorrectionEMeta;
-    std::map<double,double> m_absorberCorrectionHADeta;
-    std::vector<double> m_energyWeightEM;
-    std::vector<double> m_energyWeightHAD;
 
 };

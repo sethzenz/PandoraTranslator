@@ -67,8 +67,6 @@ process.source.skipEvents = cms.untracked.uint32(0)
 process.load('SimGeneral.MixingModule.mixNoPU_cfi')                                                                                                                               
 process.load("Configuration.StandardSequences.Reconstruction_cff")
 process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHGCEE_cfi")
-process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitECAL_cfi")
-process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHBHE_cfi")
 
 process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
     "TrackAssociatorEDProducer",
@@ -79,8 +77,6 @@ process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
     )
 
 process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
-    ecalRecHitsEB = cms.InputTag("particleFlowRecHitECAL",""),
-    hcalRecHitsHBHE = cms.InputTag("particleFlowRecHitHBHE",""),
     HGCrechitCollection  = cms.InputTag("particleFlowRecHitHGCEE",""), 
     generaltracks = cms.VInputTag(cms.InputTag("generalTracks")),
     tPRecoTrackAsssociation= cms.InputTag("trackingParticleRecoTrackAsssociation"),
