@@ -72,12 +72,10 @@ process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
     ignoremissingtrackcollection = cms.untracked.bool(False)
     )
 
-process.pandorapfanew = cms.EDAnalyzer('runPandora',
-    ecalRecHitsEB = cms.InputTag("ecalRecHit","EcalRecHitsEB"),
-    hcalRecHitsHBHE = cms.InputTag("reducedHcalRecHits","hbheUpgradeReco"),
-    HGCEErechitCollection  = cms.InputTag('HGCalRecHit','HGCEERecHits'), 
-    HGCHEFrechitCollection = cms.InputTag('HGCalRecHit','HGCHEFRecHits'), 
-    HGCHEBrechitCollection = cms.InputTag('HGCalRecHit','HGCHEBRecHits'), 
+process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
+    ecalRecHitsEB = cms.InputTag("particleFlowRecHitECAL",""),
+    hcalRecHitsHBHE = cms.InputTag("particleFlowRecHitHBHE",""),
+    HGCrechitCollection  = cms.InputTag("particleFlowRecHitHGCEE",""), 
     generaltracks = cms.VInputTag(cms.InputTag("generalTracks")),
     tPRecoTrackAsssociation= cms.InputTag("trackingParticleRecoTrackAsssociation"),
     genParticles= cms.InputTag("genParticles"),
@@ -93,6 +91,7 @@ process.pandorapfanew = cms.EDAnalyzer('runPandora',
     energyWeightFile = cms.FileInPath('HGCal/PandoraTranslator/data/energyWeight.txt'),
 
     calibrParFile = cms.FileInPath('HGCal/PandoraTranslator/data/pandoraCalibrPars.txt'),
+    layerDepthFile = cms.FileInPath('HGCal/PandoraTranslator/data/HGCmaterial_v5.root'),
     outputFile = cms.string('pandoraoutput.root')
 )
 

@@ -3,8 +3,6 @@
 <use name="FWCore/Framework"/>
 <use name="FWCore/PluginManager"/>
 <use name="FWCore/ParameterSet"/>
-<use name="DataFormats/EcalRecHit"/>
-<use name="DataFormats/HcalRecHit"/>
 <use name="DataFormats/Math"/>
 <use name="Geometry/CaloGeometry"/>
 <use name="Geometry/CaloTopology"/>
@@ -23,6 +21,9 @@
 <use name="SimDataFormats/GeneratorProducts"/>
 <use name="SimTracker/TrackAssociation"/>
 <use name="DQMServices/Core"/>
+<use name="TrackingTools/MaterialEffects"/>
+<use name="DataFormats/ParticleFlowReco"/>
+<use name="DataFormats/ParticleFlowCandidate"/>
 <use name="root"/>
 <use name="rootmathcore"/>
 <use name="rootcore"/>
