@@ -999,7 +999,8 @@ void PandoraCMSPFCandProducer::ProcessRecHits(edm::Handle<reco::PFRecHitCollecti
   for(unsigned i=0; i<PFRecHitHandle->size(); i++) {
     const reco::PFRecHit* rh = &(*PFRecHitHandle)[i];
     const DetId detid(rh->detId());
-    double energy = rh->energy() * calib->GetADC2GeV();
+    double cos_theta = std::tanh(rh->position().Eta());
+    double energy = rh->energy() * cos_theta * calib->GetADC2GeV(); // cos_theta because CMS returns units of MIPs assuming normal angle
     
     if (energy < calib->m_CalThresh) continue;
     
@@ -1439,22 +1440,23 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
             const DetId& detid(hgcHit->detId());
             if (!detid)
                continue;
+	    double cos_theta = std::tanh(hgcHit->position().Eta()); // cos_theta because CMS returns units of MIPs assuming normal angle
       
             ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
             if (thesubdet == 3) {
               int layer = (int) ((HGCEEDetId)(detid)).layer() ;
-                clusterEMenergyECAL += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
-                clusterHADenergyECAL += hgcHit->energy() * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
+                clusterEMenergyECAL += hgcHit->energy() * cos_theta * m_calibEE->GetADC2GeV() * m_calibEE->GetEMCalib(layer);
+                clusterHADenergyECAL += hgcHit->energy() * cos_theta * m_calibEE->GetADC2GeV() * m_calibEE->GetHADCalib(layer);
             }
             else if (thesubdet == 4) {
               int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-              clusterEMenergyHCAL += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetEMCalib(layer);
-                clusterHADenergyHCAL += hgcHit->energy() * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
+              clusterEMenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEF->GetADC2GeV() * m_calibHEF->GetEMCalib(layer);
+                clusterHADenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEF->GetADC2GeV() * m_calibHEF->GetHADCalib(layer);
             }
             else if (thesubdet == 5) {
               int layer = (int) ((HGCHEDetId)(detid)).layer() ;
-              clusterEMenergyHCAL += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetEMCalib(layer);
-                clusterHADenergyHCAL += hgcHit->energy() * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
+              clusterEMenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEB->GetADC2GeV() * m_calibHEB->GetEMCalib(layer);
+                clusterHADenergyHCAL += hgcHit->energy() * cos_theta * m_calibHEB->GetADC2GeV() * m_calibHEB->GetHADCalib(layer);
             }
             else {
             }
