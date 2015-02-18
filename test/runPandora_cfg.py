@@ -36,7 +36,6 @@ process.TrackAssociatorRecord = cms.ESSource("EmptyESSource",
 )
 process.load('SimTracker.TrackAssociation.quickTrackAssociatorByHits_cfi')
 
-
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 
 # this is for the event display 
@@ -54,15 +53,22 @@ process.source = cms.Source("PoolSource",
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePiPt20.root'
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleElectronPt35.root'
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleGammaPt35.root'
-        'file:/afs/cern.ch/user/l/lgray/work/private/CMSSW_6_2_0_SLHC23_patch2/src/matrix_tests/step3.root'
+#        'file:/afs/cern.ch/user/l/lgray/work/private/CMSSW_6_2_0_SLHC23_patch2/src/matrix_tests/step3.root'
 #         'root://eoscms//eos/cms/store/group/phys_b2g/apsallid/hg/SinglePiPt10/Step3Files/step3_2.root' 
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleElectronPt50.root'
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePi0E20.root'
 #	 'file:/afs/cern.ch/user/l/lgray/work/public/CMSSW_6_2_X_SLHC_2014-07-17-0200/src/matrix_tests/140_pu/step3.root'
+        "/store/cmst3/group/hgcal/CMSSW/Single22_CMSSW_6_2_0_SLHC23_patch1/RECO-PU0/Events_22_20_80.root"
     )
 )
 
 process.source.skipEvents = cms.untracked.uint32(0)
+
+process.load('SimGeneral.MixingModule.mixNoPU_cfi')                                                                                                                               
+process.load("Configuration.StandardSequences.Reconstruction_cff")
+process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHGCEE_cfi")
+process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitECAL_cfi")
+process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHBHE_cfi")
 
 process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
     "TrackAssociatorEDProducer",
@@ -92,8 +98,17 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
 
     calibrParFile = cms.FileInPath('HGCal/PandoraTranslator/data/pandoraCalibrPars.txt'),
     layerDepthFile = cms.FileInPath('HGCal/PandoraTranslator/data/HGCmaterial_v5.root'),
+    overburdenDepthFile = cms.FileInPath('RecoParticleFlow/PFClusterProducer/data/HGCMaterialOverburden.root'),
+    useOverburdenCorrection = cms.bool(False), #disabled until the overburden values make sense
     outputFile = cms.string('pandoraoutput.root')
 )
 
+process.reconstruction_step = cms.Path(process.particleFlowRecHitHGCEE*
+                                       process.particleFlowRecHitHBHE*
+                                       process.particleFlowRecHitECAL*
+                                       process.trackingParticleRecoTrackAsssociation*
+                                       process.pandorapfanew)
+process.schedule = cms.Schedule(process.reconstruction_step)
+from SLHCUpgradeSimulations.Configuration.combinedCustoms import cust_2023HGCalMuon
+process = cust_2023HGCalMuon(process)
 
-process.p = cms.Path(process.trackingParticleRecoTrackAsssociation*process.pandorapfanew)

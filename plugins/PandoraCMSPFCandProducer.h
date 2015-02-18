@@ -117,6 +117,8 @@ public:
   edm::FileInPath m_calibrationParameterFile;
   edm::FileInPath m_energyWeightingFilename;
   edm::FileInPath m_layerDepthFilename;
+  edm::FileInPath m_overburdenDepthFilename;
+  bool m_useOverburdenCorrection;
 
   std::string m_energyCorrMethod; //energy correction method
 
@@ -271,8 +273,8 @@ class CalibCalo {
     
     //accessors
     virtual double GetADC2GeV() { return 1.; }
-    virtual double GetEMCalib(unsigned int layer) { return m_CalToEMGeV; }
-    virtual double GetHADCalib(unsigned int layer) { return m_CalToHADGeV; }
+    virtual double GetEMCalib(unsigned int layer, double eta) { return m_CalToEMGeV; }
+    virtual double GetHADCalib(unsigned int layer, double eta) { return m_CalToHADGeV; }
     
     //member variables
     PandoraCMSPFCandProducer::subdet m_id;
@@ -288,6 +290,11 @@ class CalibCalo {
     unsigned int m_TotalLayers;
     std::vector<double> nCellInteractionLengths;
     std::vector<double> nCellRadiationLengths;
+	double calibrationInteractionLength;
+	double calibrationRadiationLength;
+	std::map<double,double> nOverburdenInteractionLengths;
+	std::map<double,double> nOverburdenRadiationLengths;
+	bool useOverburdenCorrection;
 };
 
 //extension for HGC
@@ -314,27 +321,51 @@ class CalibHGC : public CalibCalo {
     
     //accessors
     virtual double GetADC2GeV() { return m_Calibr_ADC2GeV; }
-    virtual double GetEMCalib(unsigned int layer) { 
+    virtual double GetEMCalib(unsigned int layer, double eta) { 
       if(layer>m_TotalLayers) return 1.;
       
       if(m_energyCorrMethod == "ABSCORR"){
-        return m_CalToEMGeV * m_absorberCorrectionEM[layer] * m_EM_addCalibr;
+        return m_CalToEMGeV * GetAbsCorrEM(layer,eta) * m_EM_addCalibr;
       }
       else if(m_energyCorrMethod == "WEIGHTING"){
         return m_CalToEMGeV * m_energyWeightEM[layer] * m_CalToMip;
       }
       else return 1.;
     }
-    virtual double GetHADCalib(unsigned int layer) {
+    virtual double GetHADCalib(unsigned int layer, double eta) {
       if(layer>m_TotalLayers) return 1.;
       
       if(m_energyCorrMethod == "ABSCORR"){
-        return m_CalToHADGeV * m_absorberCorrectionHAD[layer] * m_HAD_addCalibr;
+        return m_CalToHADGeV * GetAbsCorrHAD(layer,eta) * m_HAD_addCalibr;
       }
       else if(m_energyCorrMethod == "WEIGHTING"){
         return m_CalToHADGeV * m_energyWeightHAD[layer] * m_CalToMip;
       }
       else return 1.;
+    }
+    virtual double GetAbsCorrEM(unsigned int layer, double eta){
+      if(layer==1 && m_id==PandoraCMSPFCandProducer::subdet::EE && useOverburdenCorrection){
+        //lower bound: first element in map with key >= name
+        typename std::map<double,double>::iterator lb = nOverburdenRadiationLengths.lower_bound(eta);
+        if(lb != nOverburdenRadiationLengths.begin()) lb--;
+        if(lb != nOverburdenRadiationLengths.end()){
+          return (nCellRadiationLengths[layer] + lb->second)/calibrationRadiationLength;
+        }
+		else return 1.;
+      }
+      else return m_absorberCorrectionEM[layer];
+    }
+	virtual double GetAbsCorrHAD(unsigned int layer, double eta){
+      if(layer==1 && m_id==PandoraCMSPFCandProducer::subdet::EE && useOverburdenCorrection){
+        //lower bound: first element in map with key >= name
+        typename std::map<double,double>::iterator lb = m_absorberCorrectionHADeta.lower_bound(eta);
+        if(lb != m_absorberCorrectionHADeta.begin()) lb--;
+        if(lb != m_absorberCorrectionHADeta.end()){
+          return lb->second;
+        }
+		else return 1.;
+      }
+      else return m_absorberCorrectionHAD[layer];
     }
     
     //helper functions
@@ -345,12 +376,24 @@ class CalibHGC : public CalibCalo {
     }
     virtual void getLayerProperties() {
       for(unsigned layer = 1; layer <= m_TotalLayers; layer++){        
-        m_absorberCorrectionEM.push_back(nCellRadiationLengths[layer]/nCellRadiationLengths[1]);
-        m_absorberCorrectionHAD.push_back(nCellInteractionLengths[layer]/nCellInteractionLengths[1]);
+        m_absorberCorrectionEM.push_back(nCellRadiationLengths[layer]/calibrationRadiationLength);
+        m_absorberCorrectionHAD.push_back(nCellInteractionLengths[layer]/calibrationInteractionLength);
+		std::cout << m_name << ": absCorrEM = " << m_absorberCorrectionEM.back() << ", absCorrHAD = " << m_absorberCorrectionHAD.back() << std::endl;
         
         m_energyWeightEM.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameEM));
         m_energyWeightHAD.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameHAD));
       }
+	  //eta-dependent correction for EE layer 1
+	  if(m_id==PandoraCMSPFCandProducer::subdet::EE && useOverburdenCorrection){
+	    typename std::map<double,double>::iterator EMit = nOverburdenRadiationLengths.begin();
+	    typename std::map<double,double>::iterator HADit = nOverburdenInteractionLengths.begin();
+		for(; EMit != nOverburdenRadiationLengths.end(); EMit++){
+          m_absorberCorrectionEMeta[EMit->first] = (nCellRadiationLengths[1] + EMit->second)/calibrationRadiationLength;
+          m_absorberCorrectionHADeta[HADit->first] = (nCellInteractionLengths[1] + HADit->second)/calibrationInteractionLength;
+		  std::cout << m_name << ": eta = " << EMit->first << ", absCorrEM = " << m_absorberCorrectionEMeta[EMit->first] << ", absCorrHAD = " << m_absorberCorrectionHADeta[HADit->first] << std::endl;
+		  HADit++;
+		}
+	  }
 	}
     
     //member variables
@@ -360,6 +403,8 @@ class CalibHGC : public CalibCalo {
 	std::string m_stm_nameLayer, m_stm_nameEM, m_stm_nameHAD;
     std::vector<double> m_absorberCorrectionEM;
     std::vector<double> m_absorberCorrectionHAD;
+    std::map<double,double> m_absorberCorrectionEMeta;
+    std::map<double,double> m_absorberCorrectionHADeta;
     std::vector<double> m_energyWeightEM;
     std::vector<double> m_energyWeightHAD;
 
