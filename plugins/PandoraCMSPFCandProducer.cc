@@ -982,7 +982,7 @@ void PandoraCMSPFCandProducer::ProcessRecHits(const reco::PFRecHit* rh, unsigned
     //    double cos_theta = std::tanh(rh->position().Eta()); 
     double cos_theta = 1.; // We do not need this correction because increasing thickness of absorber material compensates
                            // for increasing path length at non-normal incidence
-    double energy = rh->energy() * cos_theta * calib->GetADC2GeV(); 
+    double energy = rh->energy() * cos_theta * calib.GetADC2GeV(); 
 
     
     if (energy < calib.m_CalThresh) return;
