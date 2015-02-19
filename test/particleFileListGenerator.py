@@ -30,7 +30,7 @@ for ene in [5,10,20,40,50,75,100,125,175,250,400,500]:
 
 from os import access,F_OK
 
-outf = open("particleFileList.py",'w')
+outf = open("particleFileLists.py",'w')
 
 for collname in collnames:
   exec "coll = %s" % collname
