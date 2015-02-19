@@ -100,8 +100,6 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
 )
 
 process.reconstruction_step = cms.Path(process.particleFlowRecHitHGCEE*
-                                       process.particleFlowRecHitHBHE*
-                                       process.particleFlowRecHitECAL*
                                        process.trackingParticleRecoTrackAsssociation*
                                        process.pandorapfanew)
 process.schedule = cms.Schedule(process.reconstruction_step)
