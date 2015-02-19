@@ -40,7 +40,7 @@ for collname in collnames:
   n = 0
   for item in coll:
     if access(item,F_OK):
-      outf.write('"%s"\n' % (item.replace("/afs/cern.ch/user/s/sethzenz/","/")))
+      outf.write('"%s",\n' % (item.replace("/afs/cern.ch/user/s/sethzenz/","/")))
       n += 1
   print n
   outf.write("]\n\n")
