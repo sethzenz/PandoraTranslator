@@ -1048,8 +1048,8 @@ void PandoraCMSPFCandProducer::ProcessRecHits(edm::Handle<reco::PFRecHitCollecti
   for(unsigned i=0; i<PFRecHitHandle->size(); i++) {
     const reco::PFRecHit* rh = &(*PFRecHitHandle)[i];
     const DetId detid(rh->detId());
-	double eta = fabs(rh->position().Eta());
-    double cos_theta = std::tanh(rh->position().Eta());
+    double eta = fabs(rh->position().Eta());
+    double cos_theta = 1.0;//std::tanh(rh->position().Eta());
     double energy = rh->energy() * cos_theta * calib->GetADC2GeV(); // cos_theta because CMS returns units of MIPs assuming normal angle
     
     if (energy < calib->m_CalThresh) continue;
@@ -1405,7 +1405,7 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
 
     if(pa->pdgId()>0) charge_true = 1;
     if(pa->pdgId()<0) charge_true = -1;
-    if(pa->pdgId()==22) charge_true = 0;
+    if(pa->pdgId()==22 || pa->pdgId() == 130) charge_true = 0;
      //std::cout << " IN GENPART LOOP charge min " << std::endl;
       double diff_min  = 1e9;
       ene_match       = 0;
@@ -1491,7 +1491,7 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
             if (!detid)
                continue;
             double eta = fabs(hgcHit->position().Eta());
-            double cos_theta = std::tanh(hgcHit->position().Eta()); // cos_theta because CMS returns units of MIPs assuming normal angle
+            double cos_theta = 1.0;//std::tanh(hgcHit->position().Eta()); // cos_theta because CMS returns units of MIPs assuming normal angle
       
             ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
             if (thesubdet == 3) {
@@ -1686,8 +1686,8 @@ void PandoraCMSPFCandProducer::beginJob()
   h_sumPfoE = new TH1F("hsumPfoE","sumPFOenergy",1000,0.,1000.);
   h_nbPFOs = new TH1F("hnbPfos","nb of rec PFOs",30,0.,30.);
 
-  h2_Calo_EM_hcalEecalE = new TH2F("CalohcalEecalEem","",1000,0,400,1000,0,400);
-  h2_Calo_Had_hcalEecalE = new TH2F("CalohcalEecalEhad","",1000,0,400,1000,0,400);
+  h2_Calo_EM_hcalEecalE = new TH2F("CalohcalEecalEem","",1000,0,100.0,1000,0,100.0);
+  h2_Calo_Had_hcalEecalE = new TH2F("CalohcalEecalEhad","",1000,0,100.0,1000,0,100.0);
 
 
   h2_EM_hcalEecalE = new TH2F("hcalEecalEem","",1000,0,400,1000,0,400);

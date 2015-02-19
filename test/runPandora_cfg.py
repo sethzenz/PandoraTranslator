@@ -41,26 +41,48 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 # this is for the event display 
 #process.EveService = cms.Service("EveService")
 
+infiles="""
+Events_130_100_19.root
+Events_130_100_2.root
+Events_130_100_20.root
+Events_130_100_21.root
+Events_130_100_22.root
+Events_130_100_24.root
+Events_130_100_25.root
+Events_130_100_26.root
+Events_130_100_27.root
+Events_130_100_28.root
+Events_130_100_29.root
+Events_130_100_3.root
+Events_130_100_32.root
+Events_130_100_34.root
+Events_130_100_35.root
+Events_130_100_37.root
+Events_130_100_38.root
+Events_130_100_39.root
+Events_130_100_4.root
+Events_130_100_40.root
+Events_130_100_41.root
+Events_130_100_42.root
+Events_130_100_44.root
+Events_130_100_45.root
+Events_130_100_47.root
+Events_130_100_48.root
+Events_130_100_49.root
+Events_130_100_5.root
+Events_130_100_50.root
+Events_130_100_6.root
+Events_130_100_7.root
+Events_130_100_9.root
+""".split()
+
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
-#        'file:/afs/cern.ch/work/v/vandreev/public/RecHits/SLHC14/step3_elecPt35.root'
-#        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePiPt100_EtaEE.root'
-#	 'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleElectronPt35_EtaEE.root'
-#        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleMuPt10_EtaEE.root'
-#	 'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePiPt10_EtaEE.root'
-
-#	 'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePiPt10.root'
-#        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePiPt20.root'
-#        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleElectronPt35.root'
-#        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleGammaPt35.root'
-#        'file:/afs/cern.ch/user/l/lgray/work/private/CMSSW_6_2_0_SLHC23_patch2/src/matrix_tests/step3.root'
-#         'root://eoscms//eos/cms/store/group/phys_b2g/apsallid/hg/SinglePiPt10/Step3Files/step3_2.root' 
-#        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleElectronPt50.root'
-#        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePi0E20.root'
-#	 'file:/afs/cern.ch/user/l/lgray/work/public/CMSSW_6_2_X_SLHC_2014-07-17-0200/src/matrix_tests/140_pu/step3.root'
-        "/store/cmst3/group/hgcal/CMSSW/Single22_CMSSW_6_2_0_SLHC23_patch1/RECO-PU0/Events_22_20_80.root"
+        'file:simple_jets.root'
     )
 )
+
+#["/store/cmst3/group/hgcal/CMSSW/Single130-FixE_CMSSW_6_2_0_SLHC23_patch2/%s"%a for a in infiles]
 
 process.source.skipEvents = cms.untracked.uint32(0)
 
@@ -103,7 +125,10 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
     outputFile = cms.string('pandoraoutput.root')
 )
 
-process.reconstruction_step = cms.Path(process.particleFlowRecHitHGCEE*
+process.load('UserCode.HGCanalysis.hgcTrackerInteractionsFilter_cfi')
+
+process.reconstruction_step = cms.Path(#process.trackerIntFilter*
+                                       process.particleFlowRecHitHGCEE*
                                        process.particleFlowRecHitHBHE*
                                        process.particleFlowRecHitECAL*
                                        process.trackingParticleRecoTrackAsssociation*
@@ -112,3 +137,44 @@ process.schedule = cms.Schedule(process.reconstruction_step)
 from SLHCUpgradeSimulations.Configuration.combinedCustoms import cust_2023HGCalMuon
 process = cust_2023HGCalMuon(process)
 
+infiles = """
+Events_130_20_1.root
+Events_130_20_10.root
+Events_130_20_11.root
+Events_130_20_14.root
+Events_130_20_15.root
+Events_130_20_16.root
+Events_130_20_17.root
+Events_130_20_19.root
+Events_130_20_2.root
+Events_130_20_21.root
+Events_130_20_22.root
+Events_130_20_24.root
+Events_130_20_25.root
+Events_130_20_27.root
+Events_130_20_28.root
+Events_130_20_29.root
+Events_130_20_30.root
+Events_130_20_31.root
+Events_130_20_33.root
+Events_130_20_34.root
+Events_130_20_35.root
+Events_130_20_37.root
+Events_130_20_38.root
+Events_130_20_39.root
+Events_130_20_4.root
+Events_130_20_40.root
+Events_130_20_41.root
+Events_130_20_42.root
+Events_130_20_43.root
+Events_130_20_44.root
+Events_130_20_45.root
+Events_130_20_46.root
+Events_130_20_47.root
+Events_130_20_49.root
+Events_130_20_50.root
+Events_130_20_6.root
+Events_130_20_7.root
+Events_130_20_8.root
+Events_130_20_9.root
+""".split()
