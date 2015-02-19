@@ -41,6 +41,8 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 # this is for the event display 
 #process.EveService = cms.Service("EveService")
 
+from particleFileLists import Pho100
+
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
 #        'file:/afs/cern.ch/work/v/vandreev/public/RecHits/SLHC14/step3_elecPt35.root'
@@ -58,7 +60,8 @@ process.source = cms.Source("PoolSource",
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SingleElectronPt50.root'
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePi0E20.root'
 #	 'file:/afs/cern.ch/user/l/lgray/work/public/CMSSW_6_2_X_SLHC_2014-07-17-0200/src/matrix_tests/140_pu/step3.root'
-        "/store/cmst3/group/hgcal/CMSSW/Single22_CMSSW_6_2_0_SLHC23_patch1/RECO-PU0/Events_22_20_80.root"
+#        "/store/cmst3/group/hgcal/CMSSW/Single22_CMSSW_6_2_0_SLHC23_patch1/RECO-PU0/Events_22_20_80.root"
+        Pho100 # all photon files, 100 GeV
     )
 )
 
@@ -99,7 +102,17 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
     outputFile = cms.string('pandoraoutput.root')
 )
 
-process.reconstruction_step = cms.Path(process.particleFlowRecHitHGCEE*
+# To use the hgcTrackerInteractionsFilter, you need the following additional code
+#
+# cd ${CMSSW_BASE}/src
+# git clone https://github.com/sethzenz/HGCanalysis.git UserCode/HGCanalysis
+# git checkout origin/hacked-interactions-filter
+# cd Usercode ; scram b -j 9
+
+process.load("UserCode/HGCanalysis/hgcTrackerInteractionsFilter_cfi")
+
+process.reconstruction_step = cms.Path(process.trackerIntFilter*
+                                       process.particleFlowRecHitHGCEE*
                                        process.trackingParticleRecoTrackAsssociation*
                                        process.pandorapfanew)
 process.schedule = cms.Schedule(process.reconstruction_step)
