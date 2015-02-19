@@ -3,17 +3,19 @@ Calibr_ADC2GeV_HEF 1.
 Calibr_ADC2GeV_HEB 1.
 
 #additional calibration
-EMaddCalibrEE  53.0
-EMaddCalibrHEF 53.0
-EMaddCalibrHEB 1.0
+EMaddCalibrEE  201.82533
+EMaddCalibrHEF 201.82533
+EMaddCalibrHEB 201.82533
 
 #HADaddCalibrEE 52.9083
 #HADaddCalibrHEF 339.1
 #HADaddCalibrHEB 339.1
-HADaddCalibrEE  96.
-HADaddCalibrHEF 761.0
-HADaddCalibrHEB 0.370
-
+#HADaddCalibrEE  96.
+#HADaddCalibrHEF 761.0
+#HADaddCalibrHEB 0.370
+HADaddCalibrEE  214.1997
+HADaddCalibrHEF 873.07
+HADaddCalibrHEB 64.835
 
 # #threshold in GeV -- increase a little bit
 ECalThresEndCap 27.75e-6
