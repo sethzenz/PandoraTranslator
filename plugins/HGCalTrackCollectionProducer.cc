@@ -71,12 +71,12 @@ private:
 
 HGCalTrackCollectionProducer::HGCalTrackCollectionProducer(const edm::ParameterSet & iConfig) :
   _src(consumes<edm::View<reco::PFRecTrack> >(iConfig.getParameter<edm::InputTag> ("src"))),
+  _debug(iConfig.getParameter<bool>("debug")),
   _DPtovPtCut(iConfig.getParameter<std::vector<double> >("DPtOverPtCuts_byTrackAlgo")),
   _NHitCut(iConfig.getParameter<std::vector<unsigned> >("NHitCuts_byTrackAlgo")),
   _useIterTracking(iConfig.getParameter<bool>("useIterativeTracking")),
   _useFirstLayerOnly(iConfig.getParameter<bool>("UseFirstLayerOnly"))
 {
-  _debug = true; // That's right, I hard-coded debug-mode.
 
   if (_debug) std::cout << " HGCalTrackCollectionProducer::HGCalTrackCollectionProducer " << std::endl;
 

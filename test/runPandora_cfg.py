@@ -71,6 +71,23 @@ process.load('SimGeneral.MixingModule.mixNoPU_cfi')
 process.load("Configuration.StandardSequences.Reconstruction_cff")
 process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHGCEE_cfi")
 
+process.HGCalTrackCollection = cms.EDProducer("HGCalTrackCollectionProducer",
+    src = cms.InputTag("pfTrack"),
+    debug = cms.bool(False),
+    # From GeneralTracksImporter                                                                                                          
+    useIterativeTracking = cms.bool(True),
+    DPtOverPtCuts_byTrackAlgo = cms.vdouble(-1.0,-1.0,-1.0,
+                                             1.0,1.0),
+    NHitCuts_byTrackAlgo = cms.vuint32(3,3,3,3,3),
+
+    # From HGCClusterizer                                                                                                                 
+     hgcalGeometryNames = cms.PSet( HGC_ECAL  = cms.string('HGCalEESensitive'),
+#     HGC_HCALF = cms.string('HGCalHESiliconSensitive'),                                                
+#     HGC_HCALB = cms.string('HGCalHEScintillatorSensitive') ),                                          
+    ),
+    UseFirstLayerOnly = cms.bool(True)
+    )
+
 process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
     "TrackAssociatorEDProducer",
     label_tr = cms.InputTag("generalTracks"),
@@ -81,7 +98,7 @@ process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
 
 process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
     HGCrechitCollection  = cms.InputTag("particleFlowRecHitHGCEE",""), 
-    generaltracks = cms.InputTag("pfTrack"), #eventually will be "TracksInHGCal"
+    generaltracks = cms.InputTag("HGCalTrackCollection","TracksInHGCal"),
     tPRecoTrackAsssociation= cms.InputTag("trackingParticleRecoTrackAsssociation"),
     genParticles= cms.InputTag("genParticles"),
 #    inputconfigfile = cms.string('PandoraSettingsDefault_WithoutMonitoring.xml'),
@@ -105,14 +122,14 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
 # To use the hgcTrackerInteractionsFilter, you need the following additional code
 #
 # cd ${CMSSW_BASE}/src
-# git clone https://github.com/sethzenz/HGCanalysis.git UserCode/HGCanalysis
-# git checkout origin/hacked-interactions-filter
+# git clone https://github.com/sethzenz/HGCanalysis.git --branch hacked-interactions-filter UserCode/HGCanalysis
 # cd Usercode ; scram b -j 9
 
 process.load("UserCode/HGCanalysis/hgcTrackerInteractionsFilter_cfi")
 
 process.reconstruction_step = cms.Path(process.trackerIntFilter*
                                        process.particleFlowRecHitHGCEE*
+                                       process.HGCalTrackCollection*
                                        process.trackingParticleRecoTrackAsssociation*
                                        process.pandorapfanew)
 process.schedule = cms.Schedule(process.reconstruction_step)
