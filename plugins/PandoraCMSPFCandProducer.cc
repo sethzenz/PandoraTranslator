@@ -948,9 +948,13 @@ void PandoraCMSPFCandProducer::ProcessRecHits(const reco::PFRecHit* rh, unsigned
                  const pandora::HitType hitType, const pandora::HitRegion hitRegion, PandoraApi::RectangularCaloHitParameters& caloHitParameters)
 {
     const DetId detid(rh->detId());
-	double eta = fabs(rh->position().Eta());
-    double cos_theta = std::tanh(rh->position().Eta());
-    double energy = rh->energy() * cos_theta * calib.GetADC2GeV(); // cos_theta because CMS returns units of MIPs assuming normal angle
+
+    double eta = fabs(rh->position().Eta());
+    //    double cos_theta = std::tanh(rh->position().Eta()); 
+    double cos_theta = 1.; // We do not need this correction because increasing thickness of absorber material compensates
+                           // for increasing path length at non-normal incidence
+    double energy = rh->energy() * cos_theta * calib.GetADC2GeV(); 
+
     
     if (energy < calib.m_CalThresh) return;
     
@@ -1363,7 +1367,9 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
             if (!detid)
                continue;
             double eta = fabs(hgcHit->position().Eta());
-            double cos_theta = std::tanh(hgcHit->position().Eta()); // cos_theta because CMS returns units of MIPs assuming normal angle
+	    //            double cos_theta = std::tanh(hgcHit->position().Eta());
+	    double cos_theta = 1.; // We do not need this correction because increasing thickness of absorber material compensates
+	    // for increasing path length at non-normal incidence
       
             ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
             if (thesubdet == 3) {
