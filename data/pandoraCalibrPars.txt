@@ -7,9 +7,6 @@ EMaddCalibrEE  201.82533
 EMaddCalibrHEF 201.82533
 EMaddCalibrHEB 201.82533
 
-#HADaddCalibrEE 52.9083
-#HADaddCalibrHEF 339.1
-#HADaddCalibrHEB 339.1
 HADaddCalibrEE  214.1997
 HADaddCalibrHEF 873.07
 HADaddCalibrHEB 64.835
