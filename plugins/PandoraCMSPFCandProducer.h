@@ -43,6 +43,7 @@
 #include "Objects/Track.h"
 
 #include "Geometry/CaloGeometry/interface/CaloSubdetectorGeometry.h"
+#include "DataFormats/GeometrySurface/interface/BoundDisk.h"
 
 #include "DataFormats/ParticleFlowReco/interface/PFRecHit.h"
 #include "DataFormats/ParticleFlowReco/interface/PFRecHitFwd.h"
@@ -74,6 +75,8 @@ class IdealGeometryRecord;
 class CaloGeometry;
 class HGCalGeometry;
 class MagneticField;
+class TrackerGeometry;
+class PropagatorWithMaterial;
 
 // namespace pandora {class Pandora;}
 
@@ -285,11 +288,12 @@ private:
   edm::InputTag    inputTagHGCrechit_;
   edm::InputTag    inputTagtPRecoTrackAsssociation_;
   edm::InputTag    inputTagGenParticles_;
-  std::vector<edm::InputTag>  inputTagGeneralTracks_;
+  edm::InputTag    inputTagGeneralTracks_;
   //std::vector<std::string> mFileNames;
   
   // hash tables to translate back to CMSSW collection index from Pandora
   std::unordered_map<const void*,unsigned int> recHitMap;
+  std::unordered_map<const void*,unsigned int> recTrackMap;
   
   //geometry handles
   edm::ESHandle<CaloGeometry> geoHandle;
@@ -297,6 +301,11 @@ private:
   edm::ESHandle<HGCalGeometry> hgchefGeoHandle ; 
   edm::ESHandle<HGCalGeometry> hgchebGeoHandle ; 
   edm::ESHandle<MagneticField> magneticField;
+  edm::ESHandle<TrackerGeometry> tkGeom;
+  
+  //for track propagation to calorimeter
+  std::vector<ReferenceCountingPointer<BoundDisk> > _plusSurface,_minusSurface;
+  std::unique_ptr<PropagatorWithMaterial> _mat_prop;  
 
   TFile * file;
   TTree *mytree;

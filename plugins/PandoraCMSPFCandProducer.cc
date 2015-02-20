@@ -31,17 +31,24 @@
 #include "DataFormats/ForwardDetId/interface/HGCHEDetId.h"
 #include "Geometry/FCalGeometry/interface/HGCalGeometry.h"
 
+#include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
 
 #include "TrackingTools/TransientTrack/interface/TransientTrackBuilder.h"
 #include "TrackingTools/Records/interface/TransientTrackRecord.h"
 
-#include "FastSimulation/BaseParticlePropagator/interface/BaseParticlePropagator.h"
 #include "MagneticField/Engine/interface/MagneticField.h"
 #include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
 
+// for track propagation through HGC  
+// N.B. we are only propogating to first layer, so check these later
+#include "DataFormats/TrajectorySeed/interface/PropagationDirection.h"
+#include "TrackingTools/TrajectoryState/interface/TrajectoryStateTransform.h"
+#include "TrackingTools/MaterialEffects/interface/PropagatorWithMaterial.h"
+
 #include "DataFormats/ParticleFlowCandidate/interface/PFCandidateFwd.h"
 #include "DataFormats/ParticleFlowCandidate/interface/PFCandidate.h"
-
+#include "DataFormats/ParticleFlowReco/interface/PFRecTrack.h"
+#include "DataFormats/ParticleFlowReco/interface/PFRecTrackFwd.h"
 
 //We need the speed of light
 #include "CLHEP/Units/PhysicalConstants.h"
@@ -96,7 +103,7 @@ PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iCon
 
   //mFileNames  = iConfig.getParameter<std::vector<std::string> > ("filenames"); 
   inputTagHGCrechit_ = iConfig.getParameter<InputTag>("HGCrechitCollection");
-  inputTagGeneralTracks_ = iConfig.getParameter< std::vector < InputTag > >("generaltracks");
+  inputTagGeneralTracks_ = iConfig.getParameter<InputTag>("generaltracks");
   inputTagtPRecoTrackAsssociation_ = iConfig.getParameter<InputTag>("tPRecoTrackAsssociation");
   inputTagGenParticles_ = iConfig.getParameter<InputTag>("genParticles");
   m_pandoraSettingsXmlFile = iConfig.getParameter<edm::FileInPath>("inputconfigfile");
@@ -514,6 +521,32 @@ void PandoraCMSPFCandProducer::prepareGeometry(){ // function to setup a geometr
   PandoraApi::Geometry::SubDetector::Create(*m_pPandora, *heParameters);
   // std::cout << "after set GEO" << std::endl;
 
+  // make propagator
+  constexpr float m_pion = 0.1396;
+  _mat_prop.reset( new PropagatorWithMaterial(alongMomentum, m_pion, magneticField.product()) );
+  // setup HGC layers for track propagation
+  Surface::RotationType rot; //unit rotation matrix
+
+  _minusSurface.clear();
+  _plusSurface.clear();
+  const HGCalDDDConstants &dddCons = HGCEEGeometry->topology().dddConstants();
+  std::map<float,float> zrhoCoord;
+  auto firstLayerIt = dddCons.getFirstTrForm();
+  auto lastLayerIt = dddCons.getLastTrForm();
+  for(auto layerIt=firstLayerIt; layerIt !=lastLayerIt; layerIt++) {
+    float Z(fabs(layerIt->h3v.z()));
+	auto lastmod = std::reverse_iterator<std::vector<HGCalDDDConstants::hgtrap>::const_iterator>(dddCons.getLastModule(true));
+    float Radius(lastmod->tl+layerIt->h3v.perp());
+    zrhoCoord[Z]=Radius;
+	//std::cout << "adding layer Z = " << Z << ", R = " << lastmod->tl << "+" << layerIt->h3v.perp() << std::endl;
+  }
+  //take only innermost layer
+  auto it=zrhoCoord.begin();
+  float Z(it->first);
+  float Radius(it->second);
+  _minusSurface.push_back(new BoundDisk( Surface::PositionType(0,0,-Z), rot, new SimpleDiskBounds( 0, Radius, -0.001, 0.001)));
+  _plusSurface.push_back(new BoundDisk( Surface::PositionType(0,0,+Z), rot, new SimpleDiskBounds( 0, Radius, -0.001, 0.001)));
+
 }
 
 void PandoraCMSPFCandProducer::SetDefaultSubDetectorParameters(const std::string &subDetectorName, const pandora::SubDetectorType subDetectorType, PandoraApi::Geometry::SubDetector::Parameters &parameters) const {
@@ -631,105 +664,82 @@ void PandoraCMSPFCandProducer::prepareTrack(edm::Event& iEvent){ // function to 
   
   PandoraApi::Track::Parameters trackParameters;
   //We need the speed of light
-  double speedoflight = (CLHEP::c_light*CLHEP::mm)/CLHEP::ns;
   std::cout<< speedoflight << " mm/ns" << std::endl;
 
- std::cout << "prepareTrack 1 " << inputTagGeneralTracks_.size() << std::endl ;
+  edm::Handle<reco::PFRecTrackCollection> tkRefCollection;
+  bool found = iEvent.getByLabel(inputTagGeneralTracks_, tkRefCollection);
+  if(!found ) {
+    std::ostringstream err;
+    err<<"cannot find generalTracks: "<< inputTagGeneralTracks_;
+    LogError("PandoraCMSPFCandProducer")<<err.str()<<std::endl;
+    throw cms::Exception( "MissingProduct", err.str());
+  }
 
-  for (unsigned int istr=0; istr<inputTagGeneralTracks_.size();istr++){
+  for(unsigned int i=0; i<tkRefCollection->size(); i++) {
+    const reco::PFRecTrack * pftrack = &(*tkRefCollection)[i];
+    const reco::TrackRef track = pftrack->trackRef();
     
- std::cout << "prepareTrack 2 " << std::endl;
-
-    //Track collection
-    // edm::Handle<reco::TrackCollection> tkRefCollection;
-    edm::Handle<edm::View<reco::Track> > tkRefCollection;
-    bool found1 = iEvent.getByLabel(inputTagGeneralTracks_[istr], tkRefCollection);
-    if(!found1 ) {
-      std::ostringstream err;
-      err<<"cannot find generalTracks: "<< inputTagGeneralTracks_[istr];
-      LogError("PandoraCMSPFCandProducer")<<err.str()<<std::endl;
-      throw cms::Exception( "MissingProduct", err.str());
-    } 
-        
-
- std::cout << "prepareTrack 3 " << tkRefCollection->size() << std::endl;
-
-    for(reco::TrackCollection::size_type i=0; i<tkRefCollection->size(); i++) {
-      
-      std::cout << "prepareTrack 5 " << std::endl;
-
-      const reco::Track * track = &(*tkRefCollection)[i];
-    
-      //For the d0 = -dxy
-      trackParameters.m_d0 = track->d0() * 10. ; //in mm
-      //For the z0
-      trackParameters.m_z0 = track->dz() * 10. ; //in mm
-      //For the Track momentum at the 2D distance of closest approach
-      //For tracks reconstructed in the CMS Tracker, the reference position is the point of closest approach to the centre of CMS. (math::XYZPoint posClosest = track->referencePoint();)
-      // According to TrackBase.h the momentum() method returns momentum vector at innermost (reference) point on track
-      const pandora::CartesianVector momentumAtClosestApproach(track->momentum().x(),track->momentum().y(),track->momentum().z()); //in GeV
-      trackParameters.m_momentumAtDca = momentumAtClosestApproach;
+    //For the d0 = -dxy
+    trackParameters.m_d0 = track->d0() * 10. ; //in mm
+    //For the z0
+    trackParameters.m_z0 = track->dz() * 10. ; //in mm
+    //For the Track momentum at the 2D distance of closest approach
+    //For tracks reconstructed in the CMS Tracker, the reference position is the point of closest approach to the centre of CMS. (math::XYZPoint posClosest = track->referencePoint();)
+    // According to TrackBase.h the momentum() method returns momentum vector at innermost (reference) point on track
+    const pandora::CartesianVector momentumAtClosestApproach(track->momentum().x(),track->momentum().y(),track->momentum().z()); //in GeV
+    trackParameters.m_momentumAtDca = momentumAtClosestApproach;
  
-      //For the track of the state at the start in mm and GeV
-      const pandora::CartesianVector positionAtStart(track->innerPosition().x()* 10.,track->innerPosition().y()* 10., track->innerPosition().z() * 10. );
-      const pandora::CartesianVector momentumAtStart(track->innerMomentum().x(),track->innerMomentum().y(), track->innerMomentum().z() );
-      trackParameters.m_trackStateAtStart = pandora::TrackState(positionAtStart,momentumAtStart);
-      //For the track of the state at the end in mm and GeV
-      const pandora::CartesianVector positionAtEnd(track->outerPosition().x() * 10.,track->outerPosition().y() * 10., track->outerPosition().z() * 10.);
-      const pandora::CartesianVector momentumAtEnd(track->outerMomentum().x(),track->outerMomentum().y(), track->outerMomentum().z() );
-      trackParameters.m_trackStateAtEnd = pandora::TrackState(positionAtEnd,momentumAtEnd);
-      //For the charge
-      double charge = track->charge();
-      // std::cout << "charge " << charge << std::endl;
-      trackParameters.m_charge = charge;
-      //Associate the reconstructed Track (in the Tracker) with the corresponding MC true simulated particle
-      trackParameters.m_particleId = 211; // INITIALIZATION // NS
+    //For the track of the state at the start in mm and GeV
+    const pandora::CartesianVector positionAtStart(track->innerPosition().x()* 10.,track->innerPosition().y()* 10., track->innerPosition().z() * 10. );
+    const pandora::CartesianVector momentumAtStart(track->innerMomentum().x(),track->innerMomentum().y(), track->innerMomentum().z() );
+    trackParameters.m_trackStateAtStart = pandora::TrackState(positionAtStart,momentumAtStart);
+    //For the track of the state at the end in mm and GeV
+    const pandora::CartesianVector positionAtEnd(track->outerPosition().x() * 10.,track->outerPosition().y() * 10., track->outerPosition().z() * 10.);
+    const pandora::CartesianVector momentumAtEnd(track->outerMomentum().x(),track->outerMomentum().y(), track->outerMomentum().z() );
+    trackParameters.m_trackStateAtEnd = pandora::TrackState(positionAtEnd,momentumAtEnd);
+    //For the charge
+    double charge = track->charge();
+    // std::cout << "charge " << charge << std::endl;
+    trackParameters.m_charge = charge;
+    //Associate the reconstructed Track (in the Tracker) with the corresponding MC true simulated particle
+    trackParameters.m_particleId = 211; // INITIALIZATION // NS
 
-      edm::RefToBase<reco::Track> tr(tkRefCollection, i);
-      std::vector<std::pair<TrackingParticleRef, double> > tp;
-      TrackingParticleRef tpr; 
-
-      if(pRecoToSim.find(tr) != pRecoToSim.end()){
-    tp = pRecoToSim[tr];
-    std::cout << "Reco Track pT: "  << track->pt() <<  " matched to " << tp.size() << " MC Tracks" << " associated with quality: " << tp.begin()->second << std::endl;
-    tpr = tp.begin()->first;
-      }
+    std::vector<std::pair<TrackingParticleRef, double> > tp;
+    TrackingParticleRef tpr; 
+    edm::RefToBase<reco::Track> tr(track);
+    if(pRecoToSim.find(tr) != pRecoToSim.end()){
+      tp = pRecoToSim[tr];
+      std::cout << "Reco Track pT: "  << track->pt() <<  " matched to " << tp.size() << " MC Tracks" << " associated with quality: " << tp.begin()->second << std::endl;
+      tpr = tp.begin()->first;
       
-
-
-      //So the pdg code of the track is 
-      if(pRecoToSim.find(tr) != pRecoToSim.end()) {
-
-       std::cout << " EDW  KAI PALI tpr->pdgId() " << tpr->pdgId() << std::endl;
-
-       trackParameters.m_particleId = (tpr->pdgId());
-       std::cout << "the pdg id of this track is " << (tpr->pdgId()) << std::endl;
-       //The parent vertex (from which this track was produced) has daughter particles.
-       //These are the desire siblings of this track which we need. 
-       TrackingParticleRefVector simSiblings = getTpSiblings(tpr);
-
-       const TrackingParticle * sib; 
-       int numofsibs = 0;
-       std::vector<int> pdgidofsibs; pdgidofsibs.clear();
-
-        
+      trackParameters.m_particleId = (tpr->pdgId());
+      std::cout << "the pdg id of this track is " << (tpr->pdgId()) << std::endl;
+      //The parent vertex (from which this track was produced) has daughter particles.
+      //These are the desire siblings of this track which we need. 
+      TrackingParticleRefVector simSiblings = getTpSiblings(tpr);
+      
+      const TrackingParticle * sib; 
+      int numofsibs = 0;
+      std::vector<int> pdgidofsibs; pdgidofsibs.clear();
+      
       if (simSiblings.isNonnull()) {
-    for(TrackingParticleRefVector::iterator si = simSiblings.begin(); si != simSiblings.end(); si++){
-      //Check if the current sibling is the track under study
-      if ( (*si) ==  tpr  ) {continue;}
-      sib = &(**si);
-      pdgidofsibs.push_back(sib->pdgId());
-      ++numofsibs;
-      PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetTrackSiblingRelationship(*m_pPandora, track, sib)); 
-    }
-    std::cout<< "This track has " << numofsibs << " sibling tracks with pdgids:" << std::endl; 
-    for (std::vector<int>::iterator sib_pdg_it = pdgidofsibs.begin(); sib_pdg_it != pdgidofsibs.end(); sib_pdg_it++){
-      std::cout << (*sib_pdg_it) << std::endl;
-    }
-      } else {
-    std::cout << "Particle pdgId = "<< (tpr->pdgId()) << " produced at rho = " << (tpr->vertex().Rho()) << ", z = " << (tpr->vertex().Z()) << ", has NO siblings!"<< std::endl;
+        for(TrackingParticleRefVector::iterator si = simSiblings.begin(); si != simSiblings.end(); si++){
+          //Check if the current sibling is the track under study
+          if ( (*si) ==  tpr  ) {continue;}
+          sib = &(**si);
+          pdgidofsibs.push_back(sib->pdgId());
+          ++numofsibs;
+          PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetTrackSiblingRelationship(*m_pPandora, pftrack, sib)); 
+        }
+        std::cout<< "This track has " << numofsibs << " sibling tracks with pdgids:" << std::endl; 
+        for (std::vector<int>::iterator sib_pdg_it = pdgidofsibs.begin(); sib_pdg_it != pdgidofsibs.end(); sib_pdg_it++){
+          std::cout << (*sib_pdg_it) << std::endl;
+        }
       }
-     
+      else {
+        std::cout << "Particle pdgId = "<< (tpr->pdgId()) << " produced at rho = " << (tpr->vertex().Rho()) << ", z = " << (tpr->vertex().Z()) << ", has NO siblings!"<< std::endl;
+      }
+    
       //Now the track under study has daughter particles. To find them we study the decay vertices of the track
       TrackingParticleRefVector simDaughters = getTpDaughters(tpr);
       const TrackingParticle * dau; 
@@ -737,138 +747,99 @@ void PandoraCMSPFCandProducer::prepareTrack(edm::Event& iEvent){ // function to 
       std::vector<int> pdgidofdaus; pdgidofdaus.clear();
 
       if (simDaughters.isNonnull()) {
-    for(TrackingParticleRefVector::iterator di = simDaughters.begin(); di != simDaughters.end(); di++){
-      //We have already checked that simDaughters don't contain the track under study
-      dau = &(**di);
-      pdgidofdaus.push_back(dau->pdgId());
-      ++numofdaus;
-      PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetTrackParentDaughterRelationship(*m_pPandora, track, dau)); 
+        for(TrackingParticleRefVector::iterator di = simDaughters.begin(); di != simDaughters.end(); di++){
+          //We have already checked that simDaughters don't contain the track under study
+          dau = &(**di);
+          pdgidofdaus.push_back(dau->pdgId());
+          ++numofdaus;
+          PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetTrackParentDaughterRelationship(*m_pPandora, pftrack, dau)); 
+        }
+        std::cout<< "This track has " << numofdaus << " daughter tracks with pdgids:" << std::endl; 
+        for (std::vector<int>::iterator dau_pdg_it = pdgidofdaus.begin(); dau_pdg_it != pdgidofdaus.end(); dau_pdg_it++){
+          std::cout << (*dau_pdg_it) << std::endl;
+        }
+      } 
+      else {
+        std::cout << "Particle pdgId = "<< (tpr->pdgId()) << " produced at rho = " << (tpr->vertex().Rho()) << ", z = " << (tpr->vertex().Z()) << ", has NO daughters!"<< std::endl;
+      }
+
+    } // KLEINW TO IF pRecoToSim.find(tr) != pRecoToSim.end() NS FIX
+
+    //The mass 
+    trackParameters.m_mass = pandora::PdgTable::GetParticleMass(trackParameters.m_particleId.Get());
+
+    //For the ECAL entrance
+    // Starting from outermost hit position of the track and propagating to ECAL Entrance
+
+    const TrajectoryStateOnSurface myTSOS = trajectoryStateTransform::outerStateOnSurface(*track, *(tkGeom.product()), magneticField.product());
+    std::cout << "magnetic field z " << B_.z() << std::endl;
+    std::cout << "theOutParticle x position before propagation in cm "<< myTSOS.globalPosition().x()<< std::endl;
+    std::cout << "theOutParticle x momentum before propagation in cm "<< myTSOS.globalMomentum().x()<< std::endl;
+
+    const auto& layer( (myTSOS.globalPosition().z() > 0 ? _plusSurface[0] : _minusSurface[0]) );
+	//std::cout << "BoundDisk inner radius = " << layer->innerRadius() << ", outer radius = " << layer->outerRadius() << std::endl;
+	TrajectoryStateOnSurface piStateAtSurface = _mat_prop->propagate(myTSOS, *layer);
+    
+	bool reachesCalorimeter = false;
+	bool isonendcap = false;
+	double mom = 0;
+    if(piStateAtSurface.isValid()){
+      // std::cout<< "!!!Reached ECAL!!! "<< std::endl;
+      reachesCalorimeter = true;
+      // std::cout<< "It is on the endcaps "<< std::endl;
+      isonendcap = true;
+	  std::cout << "theOutParticle x position after propagation to ECAL "<< piStateAtSurface.globalPosition().x()<< std::endl;
+      std::cout << "theOutParticle x momentum after propagation to ECAL "<< piStateAtSurface.globalMomentum().x()<< std::endl;	
+	  mom = sqrt((piStateAtSurface.globalMomentum().x()*piStateAtSurface.globalMomentum().x()
+                 +piStateAtSurface.globalMomentum().y()*piStateAtSurface.globalMomentum().y()
+                 +piStateAtSurface.globalMomentum().z()*piStateAtSurface.globalMomentum().z()));
     }
-    std::cout<< "This track has " << numofdaus << " daughter tracks with pdgids:" << std::endl; 
-    for (std::vector<int>::iterator dau_pdg_it = pdgidofdaus.begin(); dau_pdg_it != pdgidofdaus.end(); dau_pdg_it++){
-      std::cout << (*dau_pdg_it) << std::endl;
+	
+    trackParameters.m_reachesCalorimeter = reachesCalorimeter;
+    if (reachesCalorimeter){
+      const pandora::CartesianVector positionAtCalorimeter(piStateAtSurface.globalPosition().x() * 10.,piStateAtSurface.globalPosition().y() * 10.,piStateAtSurface.globalPosition().z() * 10.);//in mm
+      const pandora::CartesianVector momentumAtCalorimeter(piStateAtSurface.globalMomentum().x(),piStateAtSurface.globalMomentum().y(),piStateAtSurface.globalMomentum().z());
+      trackParameters.m_trackStateAtCalorimeter = pandora::TrackState(positionAtCalorimeter, momentumAtCalorimeter);
+      // For the time at calorimeter we need the speed of light
+      //This is in BaseParticlePropagator c_light() method in mm/ns but is protected (299.792458 mm/ns)
+      //So we take it from CLHEP
+      trackParameters.m_timeAtCalorimeter = positionAtCalorimeter.GetMagnitude() / speedoflight; // in ns
     }
-      } else {
-    std::cout << "Particle pdgId = "<< (tpr->pdgId()) << " produced at rho = " << (tpr->vertex().Rho()) << ", z = " << (tpr->vertex().Z()) << ", has NO daughters!"<< std::endl;
-      }
-
-} // KLEINW TO IF pRecoToSim.find(tr) != pRecoToSim.end() NS FIX
-
-
-      //The mass 
-      trackParameters.m_mass = pandora::PdgTable::GetParticleMass(trackParameters.m_particleId.Get());
- 
-
-      //For the ECAL entrance
-      // Starting from outermost hit position of the track and propagating to ECAL Entrance
-      double pfoutenergy = track->outerMomentum().Mag2();
-
-      //the input BaseParticlePropagator needs to be cm and GeV
-      BaseParticlePropagator theOutParticle = BaseParticlePropagator( RawParticle(XYZTLorentzVector(track->outerMomentum().x(),
-                                                    track->outerMomentum().y(),
-                                                    track->outerMomentum().z(),
-                                                    pfoutenergy),
-                                          XYZTLorentzVector(track->outerPosition().x(),
-                                                    track->outerPosition().y(),
-                                                    track->outerPosition().z(),
-                                                    0.)),
-                                      0.,0.,B_.z());
-
-      theOutParticle.setCharge(track->charge());
-      math::XYZPoint theOutParticle_position = math::XYZPoint(theOutParticle.vertex());
-      math::XYZTLorentzVector theOutParticle_momentum = theOutParticle.momentum();
-      std::cout << "magnetic field z " << B_.z() << std::endl;
-      std::cout << "theOutParticle x position before propagation in cm "<< theOutParticle_position.x()<< std::endl;
-      std::cout << "theOutParticle x momentum before propagation in cm "<< theOutParticle_momentum.x()<< std::endl;
-      theOutParticle.propagateToEcalEntrance(false);
-      bool reachesCalorimeter = false;
-      bool isonendcap = false;
-
-      //Set position and momentum after propagation to ECAL
-      theOutParticle_position = math::XYZPoint(theOutParticle.vertex());
-      theOutParticle_momentum = theOutParticle.momentum();
- 
-      std::cout << "theOutParticle x position after propagation to ECAL "<< theOutParticle_position.x()<< std::endl;
-      std::cout << "theOutParticle x momentum after propagation to ECAL "<< theOutParticle_momentum.x()<< std::endl;
-     
-      if(theOutParticle.getSuccess()!=0){
-    // std::cout<< "!!!Reached ECAL!!! "<< std::endl;
-    reachesCalorimeter = true;
-      }
-      if( abs(theOutParticle.getSuccess()) == 2){
-    // std::cout<< "It is on the endcaps "<< std::endl;
-    isonendcap = true;
-      }
-
-      trackParameters.m_reachesCalorimeter = reachesCalorimeter;
-      if (reachesCalorimeter){
-    const pandora::CartesianVector positionAtCalorimeter(theOutParticle_position.x() * 10.,theOutParticle_position.y() * 10.,theOutParticle_position.z() * 10.);//in mm
-    const pandora::CartesianVector momentumAtCalorimeter(theOutParticle_momentum.x(),theOutParticle_momentum.y(),theOutParticle_momentum.z());
-    trackParameters.m_trackStateAtCalorimeter = pandora::TrackState(positionAtCalorimeter, momentumAtCalorimeter);
-    // For the time at calorimeter we need the speed of light
-    //This is in BaseParticlePropagator c_light() method in mm/ns but is protected (299.792458 mm/ns)
-    //So we take it from CLHEP
-    trackParameters.m_timeAtCalorimeter = positionAtCalorimeter.GetMagnitude() / speedoflight; // in ns
-      
-      } else { 
-    trackParameters.m_trackStateAtCalorimeter = trackParameters.m_trackStateAtEnd.Get();
-    //trackParameters.m_timeAtCalorimeter = std::numeric_limits<double>::max();
-    trackParameters.m_timeAtCalorimeter = 999999999.;
-      }
-
-/*
-      trackParameters.m_isProjectedToEndCap = isonendcap; 
-
-      bool canFormPfo = false; 
-      bool canFormClusterlessPfo = false;
- 
-      //Add more criteria here
-      if (trackParameters.m_reachesCalorimeter.Get()){
-    canFormPfo = true;
-    canFormClusterlessPfo = true;
-    std::cout<< "Yes, this track can form pfo" << std::endl;
-      }
-      trackParameters.m_canFormPfo = canFormPfo;
-      trackParameters.m_canFormClusterlessPfo = canFormClusterlessPfo;
-*/
-
-
-      trackParameters.m_isProjectedToEndCap = isonendcap;
-
-      bool canFormPfo = false;
-      bool canFormClusterlessPfo = false;
-
-      double mom = sqrt((theOutParticle_momentum.x()*theOutParticle_momentum.x()+theOutParticle_momentum.y()*theOutParticle_momentum.y()+theOutParticle_momentum.z()*theOutParticle_momentum.z()));
-
-      if(trackParameters.m_reachesCalorimeter.Get()>0 && mom>1. && track->quality(reco::TrackBase::tight) ){
-        canFormPfo = true;
-        canFormClusterlessPfo = true;
-      }
-      trackParameters.m_canFormPfo = canFormPfo;
-      trackParameters.m_canFormClusterlessPfo = canFormClusterlessPfo;
-
-
-     //The parent address
-      trackParameters.m_pParentAddress =  (void *) track;
-
-      //Some cout
-      // std::cout <<  track->innerDetId() << std::endl;
-      // std::cout <<  track->outerPx() << std::endl;
-      // std::cout <<  track->d0() << std::endl;
-      // std::cout <<  track->dz() << std::endl;
-      // std::cout <<  pfrt->pdgCode() << std::endl;
-
-
- 
-       PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::Track::Create(*m_pPandora, trackParameters));
+    else { 
+      trackParameters.m_trackStateAtCalorimeter = trackParameters.m_trackStateAtEnd.Get();
+      //trackParameters.m_timeAtCalorimeter = std::numeric_limits<double>::max();
+      trackParameters.m_timeAtCalorimeter = 999999999.;
     }
 
-    // PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraMonitoringApi::VisualizeTracks(  &(*tkRefCollection)  , "currentTrackList", AUTO, false, true  ) );
-    // PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraMonitoringApi::VisualizeTracks(  &(*tkRefCollection)  , "currentTrackList",  true  ) );
-    // PANDORA_MONITORING_API(VisualizeTracks(  &(*tkRefCollection)  , "currentTrackList", AUTO, false, true  ) );
-    // PANDORA_MONITORING_API(ViewEvent() );
+    trackParameters.m_isProjectedToEndCap = isonendcap;
 
+    bool canFormPfo = false;
+    bool canFormClusterlessPfo = false;
 
+    if(trackParameters.m_reachesCalorimeter.Get()>0 && mom>1. && track->quality(reco::TrackBase::tight) ){
+      canFormPfo = true;
+      canFormClusterlessPfo = true;
+    }
+    trackParameters.m_canFormPfo = canFormPfo;
+    trackParameters.m_canFormClusterlessPfo = canFormClusterlessPfo;
+
+    //The parent address
+    trackParameters.m_pParentAddress =  (void *) pftrack;
+	recTrackMap.emplace((void*)pftrack,i); //associate parent address with collection index	
+
+    //Some cout
+    // std::cout <<  track->innerDetId() << std::endl;
+    // std::cout <<  track->outerPx() << std::endl;
+    // std::cout <<  track->d0() << std::endl;
+    // std::cout <<  track->dz() << std::endl;
+    // std::cout <<  pfrt->pdgCode() << std::endl;
+ 
+     PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::Track::Create(*m_pPandora, trackParameters));    
+
+    //PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraMonitoringApi::VisualizeTracks(  &(*tkRefCollection)  , "currentTrackList", AUTO, false, true  ) );
+    //PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraMonitoringApi::VisualizeTracks(  &(*tkRefCollection)  , "currentTrackList",  true  ) );
+    //PANDORA_MONITORING_API(VisualizeTracks(  &(*tkRefCollection)  , "currentTrackList", AUTO, false, true  ) );
+    //PANDORA_MONITORING_API(ViewEvent() );
   }
 
 }
@@ -1434,7 +1405,8 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
       PANDORA_MONITORING_API(VisualizeTracks( trackAddressList  , "currentTrackList", AUTO, false, true  ) );    
       PANDORA_MONITORING_API(ViewEvent() );
       for (pandora::TrackAddressList::const_iterator itTrack = trackAddressList.begin(), itTrackEnd = trackAddressList.end();itTrack != itTrackEnd; ++itTrack){
-        reco::Track * track =  (reco::Track *) (*itTrack);
+		reco::PFRecTrack * pftrack = (reco::PFRecTrack*)(*itTrack);
+        const reco::TrackRef track =  pftrack->trackRef();
         std::cout<< "Track from pfo charge " << track->charge() << std::endl;
         std::cout<< "Track from pfo transverse momentum " << track->pt() << std::endl;
       }
@@ -1695,12 +1667,15 @@ PandoraCMSPFCandProducer::beginLuminosityBlock(edm::LuminosityBlock const& iLumi
   iSetup.get<IdealGeometryRecord>().get("HGCalEESensitive",hgceeGeoHandle) ; 
   iSetup.get<IdealGeometryRecord>().get("HGCalHESiliconSensitive",hgchefGeoHandle) ; 
   iSetup.get<IdealGeometryRecord>().get("HGCalHEScintillatorSensitive",hgchebGeoHandle) ; 
-
-  //prepare geom at the beginning of each lumi block
-  prepareGeometry() ;
+  
+  //get tracker geometry
+  iSetup.get<TrackerDigiGeometryRecord>().get(tkGeom);
 
   //get the magnetic field
   iSetup.get<IdealMagneticFieldRecord>().get(magneticField);
+  
+  //prepare geom at the beginning of each lumi block
+  prepareGeometry() ;
   
   //rebuild pandora 
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::ReadSettings(*m_pPandora, m_pandoraSettingsXmlFile.fullPath()));

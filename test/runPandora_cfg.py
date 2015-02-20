@@ -78,7 +78,7 @@ process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
 
 process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
     HGCrechitCollection  = cms.InputTag("particleFlowRecHitHGCEE",""), 
-    generaltracks = cms.VInputTag(cms.InputTag("generalTracks")),
+    generaltracks = cms.InputTag("pfTrack"), #eventually will be "TracksInHGCal"
     tPRecoTrackAsssociation= cms.InputTag("trackingParticleRecoTrackAsssociation"),
     genParticles= cms.InputTag("genParticles"),
 #    inputconfigfile = cms.string('PandoraSettingsDefault_WithoutMonitoring.xml'),
