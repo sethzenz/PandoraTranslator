@@ -87,20 +87,20 @@ class PropagatorWithMaterial;
 class CalibHGC {
   public:
     //constructor
-    CalibHGC(ForwardSubdetector id, std::string name) : m_id(id), m_name(name), initialized(false)
+    CalibHGC(ForwardSubdetector id, std::string name, bool debug_) : m_id(id), m_name(name), debug(debug_), initialized(false)
     {
       m_name = name;
-	  m_stm_nameLayer = "layerSet_" + m_name;
-	  m_stm_nameEM = "energyWeight_EM_" + m_name;
-	  m_stm_nameHAD = "energyWeight_HAD_" + m_name;
+      m_stm_nameLayer = "layerSet_" + m_name;
+      m_stm_nameEM = "energyWeight_EM_" + m_name;
+      m_stm_nameHAD = "energyWeight_HAD_" + m_name;
       //skip layer 0 in all vectors
-	  nCellInteractionLengths.push_back(0.);
+      nCellInteractionLengths.push_back(0.);
       nCellRadiationLengths.push_back(0.);
-	  m_absorberCorrectionEM.push_back(1.);
+      m_absorberCorrectionEM.push_back(1.);
       m_absorberCorrectionHAD.push_back(1.);
-	  m_energyWeightEM.push_back(1.);
-	  m_energyWeightHAD.push_back(1.);
-	}
+      m_energyWeightEM.push_back(1.);
+      m_energyWeightHAD.push_back(1.);
+    }
     //destructor
     virtual ~CalibHGC() {}
     
@@ -136,11 +136,11 @@ class CalibHGC {
         if(lb != nOverburdenRadiationLengths.end()){
           return (nCellRadiationLengths[layer] + lb->second)/calibrationRadiationLength;
         }
-		else return 1.;
+        else return 1.;
       }
       else return m_absorberCorrectionEM[layer];
     }
-	virtual double GetAbsCorrHAD(unsigned int layer, double eta){
+    virtual double GetAbsCorrHAD(unsigned int layer, double eta){
       if(layer==1 && m_id==ForwardSubdetector::HGCEE && useOverburdenCorrection){
         //lower bound: first element in map with key >= name
         typename std::map<double,double>::iterator lb = m_absorberCorrectionHADeta.lower_bound(eta);
@@ -148,46 +148,47 @@ class CalibHGC {
         if(lb != m_absorberCorrectionHADeta.end()){
           return lb->second;
         }
-		else return 1.;
+        else return 1.;
       }
       else return m_absorberCorrectionHAD[layer];
     }
     
     //helper functions
     virtual void initialize() {
-	  if(initialized) return;
+      if(initialized) return;
       getLayerProperties();
-	  initialized = true;
+      initialized = true;
     }
     virtual void getLayerProperties() {
       for(unsigned layer = 1; layer <= m_TotalLayers; layer++){        
         m_absorberCorrectionEM.push_back(nCellRadiationLengths[layer]/calibrationRadiationLength);
         m_absorberCorrectionHAD.push_back(nCellInteractionLengths[layer]/calibrationInteractionLength);
-		std::cout << m_name << ": absCorrEM = " << m_absorberCorrectionEM.back() << ", absCorrHAD = " << m_absorberCorrectionHAD.back() << std::endl;
+        if(debug) std::cout << m_name << ": absCorrEM = " << m_absorberCorrectionEM.back() << ", absCorrHAD = " << m_absorberCorrectionHAD.back() << std::endl;
         
         m_energyWeightEM.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameEM));
         m_energyWeightHAD.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameHAD));
       }
-	  //eta-dependent correction for EE layer 1
-	  if(m_id==ForwardSubdetector::HGCEE && useOverburdenCorrection){
-	    typename std::map<double,double>::iterator EMit = nOverburdenRadiationLengths.begin();
-	    typename std::map<double,double>::iterator HADit = nOverburdenInteractionLengths.begin();
-		for(; EMit != nOverburdenRadiationLengths.end(); EMit++){
+      //eta-dependent correction for EE layer 1
+      if(m_id==ForwardSubdetector::HGCEE && useOverburdenCorrection){
+        typename std::map<double,double>::iterator EMit = nOverburdenRadiationLengths.begin();
+        typename std::map<double,double>::iterator HADit = nOverburdenInteractionLengths.begin();
+        for(; EMit != nOverburdenRadiationLengths.end(); EMit++){
           m_absorberCorrectionEMeta[EMit->first] = (nCellRadiationLengths[1] + EMit->second)/calibrationRadiationLength;
           m_absorberCorrectionHADeta[HADit->first] = (nCellInteractionLengths[1] + HADit->second)/calibrationInteractionLength;
-		  std::cout << m_name << ": eta = " << EMit->first << ", absCorrEM = " << m_absorberCorrectionEMeta[EMit->first] << ", absCorrHAD = " << m_absorberCorrectionHADeta[HADit->first] << std::endl;
-		  HADit++;
-		}
-	  }
-	}
+          if(debug) std::cout << m_name << ": eta = " << EMit->first << ", absCorrEM = " << m_absorberCorrectionEMeta[EMit->first] << ", absCorrHAD = " << m_absorberCorrectionHADeta[HADit->first] << std::endl;
+          HADit++;
+        }
+      }
+    }
     
     //member variables
-	ForwardSubdetector m_id;
-	std::string m_name;
-	bool initialized;
+    ForwardSubdetector m_id;
+    std::string m_name;
+    bool debug;
+    bool initialized;
     std::string m_energyCorrMethod;
     steerManager * m_stm;
-	std::string m_stm_nameLayer, m_stm_nameEM, m_stm_nameHAD;
+    std::string m_stm_nameLayer, m_stm_nameEM, m_stm_nameHAD;
     double m_CalThresh;
     double m_CalMipThresh;
     double m_CalToMip;
@@ -199,11 +200,11 @@ class CalibHGC {
     unsigned int m_TotalLayers;
     std::vector<double> nCellInteractionLengths;
     std::vector<double> nCellRadiationLengths;
-	double calibrationInteractionLength;
-	double calibrationRadiationLength;
-	std::map<double,double> nOverburdenInteractionLengths;
-	std::map<double,double> nOverburdenRadiationLengths;
-	bool useOverburdenCorrection;
+    double calibrationInteractionLength;
+    double calibrationRadiationLength;
+    std::map<double,double> nOverburdenInteractionLengths;
+    std::map<double,double> nOverburdenRadiationLengths;
+    bool useOverburdenCorrection;
     std::vector<double> m_absorberCorrectionEM;
     std::vector<double> m_absorberCorrectionHAD;
     std::map<double,double> m_absorberCorrectionEMeta;
@@ -246,8 +247,8 @@ public:
   TrackingParticleRefVector getTpDaughters(TrackingParticleRef tp);
 
   void convertPandoraToCMSSW(const edm::Handle<reco::PFRecTrackCollection>&,
-			     const edm::Handle<reco::PFRecHitCollection>&, 
-			     edm::Event& iEvent);
+                 const edm::Handle<reco::PFRecHitCollection>&, 
+                 edm::Event& iEvent);
   
   std::string _outputFileName;
   edm::FileInPath m_pandoraSettingsXmlFile;
@@ -291,6 +292,9 @@ private:
 
   // ----------member data ---------------------------
 
+  //flags
+  bool debugPrint, debugHisto;
+  
   // ----------access to event data
   edm::InputTag    inputTagHGCrechit_;
   edm::InputTag    inputTagtPRecoTrackAsssociation_;

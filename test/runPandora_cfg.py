@@ -101,6 +101,8 @@ process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
     )
 
 process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
+    debugPrint = cms.bool(False), #for cout statements
+    debugHisto = cms.bool(False), #for diagnostic/calibration histograms
     HGCrechitCollection  = cms.InputTag("particleFlowRecHitHGCEE",""), 
     generaltracks = cms.InputTag("HGCalTrackCollection","TracksInHGCal"),
     tPRecoTrackAsssociation= cms.InputTag("trackingParticleRecoTrackAsssociation"),
