@@ -41,6 +41,7 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 # this is for the event display 
 #process.EveService = cms.Service("EveService")
 
+
 from particleFileLists import Pho100
 
 process.source = cms.Source("PoolSource",
@@ -65,9 +66,12 @@ process.source = cms.Source("PoolSource",
     )
 )
 
+#["/store/cmst3/group/hgcal/CMSSW/Single130-FixE_CMSSW_6_2_0_SLHC23_patch2/%s"%a for a in infiles]
+
 process.source.skipEvents = cms.untracked.uint32(0)
 
-process.load('SimGeneral.MixingModule.mixNoPU_cfi')                                                                                                                               
+process.load('SimGeneral.MixingModule.mixNoPU_cfi')   
+process.load('Configuration.EventContent.EventContent_cff')
 process.load("Configuration.StandardSequences.Reconstruction_cff")
 process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHGCEE_cfi")
 
@@ -127,12 +131,27 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
 
 process.load("UserCode/HGCanalysis/hgcTrackerInteractionsFilter_cfi")
 
+process.FEVTDEBUGHLToutput = cms.OutputModule("PoolOutputModule",
+    splitLevel = cms.untracked.int32(0),
+    eventAutoFlushCompressedSize = cms.untracked.int32(5242880),
+    outputCommands = process.FEVTDEBUGHLTEventContent.outputCommands,
+    fileName = cms.untracked.string('file:step_pandora.root'),
+    dataset = cms.untracked.PSet(
+        filterName = cms.untracked.string(''),
+        dataTier = cms.untracked.string('GEN-SIM-RECO')
+    )
+)
+process.FEVTDEBUGHLToutput.outputCommands.append('keep *_pandorapfanew_*_*')
+
 process.reconstruction_step = cms.Path(process.trackerIntFilter*
                                        process.particleFlowRecHitHGCEE*
+                                       process.pfTrack*
                                        process.HGCalTrackCollection*
                                        process.trackingParticleRecoTrackAsssociation*
                                        process.pandorapfanew)
-process.schedule = cms.Schedule(process.reconstruction_step)
+process.FEVTDEBUGHLToutput_step = cms.EndPath(process.FEVTDEBUGHLToutput)
+
+process.schedule = cms.Schedule(process.reconstruction_step,
+                                process.FEVTDEBUGHLToutput_step)
 from SLHCUpgradeSimulations.Configuration.combinedCustoms import cust_2023HGCalMuon
 process = cust_2023HGCalMuon(process)
-

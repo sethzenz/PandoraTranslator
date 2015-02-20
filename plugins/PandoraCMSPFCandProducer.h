@@ -52,6 +52,9 @@
 #include "DataFormats/HGCRecHit/interface/HGCRecHitCollections.h"
 #include "DataFormats/ForwardDetId/interface/ForwardSubdetector.h"
 
+#include "DataFormats/ParticleFlowReco/interface/PFRecTrack.h"
+#include "DataFormats/ParticleFlowReco/interface/PFRecTrackFwd.h"
+
 #include "DataFormats/VertexReco/interface/Vertex.h"
 
 #include "DataFormats/Math/interface/Vector3D.h"
@@ -242,7 +245,9 @@ public:
   TrackingParticleRefVector getTpSiblings(TrackingParticleRef tp);
   TrackingParticleRefVector getTpDaughters(TrackingParticleRef tp);
 
-  void convertPandoraToCMSSW(edm::Event& iEvent);
+  void convertPandoraToCMSSW(const edm::Handle<reco::PFRecTrackCollection>&,
+			     const edm::Handle<reco::PFRecHitCollection>&, 
+			     edm::Event& iEvent);
   
   std::string _outputFileName;
   edm::FileInPath m_pandoraSettingsXmlFile;
