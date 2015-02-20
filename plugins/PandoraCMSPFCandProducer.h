@@ -294,6 +294,7 @@ private:
 
   //flags
   bool debugPrint, debugHisto;
+  bool useRecoTrackAsssociation;
   
   // ----------access to event data
   edm::InputTag    inputTagHGCrechit_;

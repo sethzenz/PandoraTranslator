@@ -105,6 +105,7 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
     debugHisto = cms.bool(False), #for diagnostic/calibration histograms
     HGCrechitCollection  = cms.InputTag("particleFlowRecHitHGCEE",""), 
     generaltracks = cms.InputTag("HGCalTrackCollection","TracksInHGCal"),
+    useRecoTrackAsssociation = cms.bool(True), #needed to turn off for 140PU
     tPRecoTrackAsssociation= cms.InputTag("trackingParticleRecoTrackAsssociation"),
     genParticles= cms.InputTag("genParticles"),
 #    inputconfigfile = cms.string('PandoraSettingsDefault_WithoutMonitoring.xml'),

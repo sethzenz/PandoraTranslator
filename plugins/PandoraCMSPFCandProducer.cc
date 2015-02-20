@@ -98,7 +98,7 @@ pandora::Pandora * PandoraCMSPFCandProducer::m_pPandora = NULL;
 // constructors and destructor
 //
 PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iConfig) : 
-  debugPrint(iConfig.getParameter<bool>("debugPrint")), debugHisto(iConfig.getParameter<bool>("debugHisto")),
+  debugPrint(iConfig.getParameter<bool>("debugPrint")), debugHisto(iConfig.getParameter<bool>("debugHisto")), useRecoTrackAsssociation(iConfig.getParameter<bool>("useRecoTrackAsssociation")),
   m_calibEE(ForwardSubdetector::HGCEE,"EE",debugPrint), m_calibHEF(ForwardSubdetector::HGCHEF,"HEF",debugPrint), m_calibHEB(ForwardSubdetector::HGCHEB,"HEB",debugPrint), calibInitialized(false)
 {  
   produces<reco::PFClusterCollection>();
@@ -662,8 +662,7 @@ void PandoraCMSPFCandProducer::prepareTrack(edm::Event& iEvent){ // function to 
   math::XYZVector B_(math::XYZVector(magneticField->inTesla(GlobalPoint(0,0,0))));
 
   edm::Handle<reco::RecoToSimCollection > rectosimCollection;
-  iEvent.getByLabel(inputTagtPRecoTrackAsssociation_, rectosimCollection);
-  const reco::RecoToSimCollection pRecoToSim = *(rectosimCollection.product());
+  if(useRecoTrackAsssociation) iEvent.getByLabel(inputTagtPRecoTrackAsssociation_, rectosimCollection);
   
   PandoraApi::Track::Parameters trackParameters;
   //We need the speed of light
@@ -709,66 +708,69 @@ void PandoraCMSPFCandProducer::prepareTrack(edm::Event& iEvent){ // function to 
     std::vector<std::pair<TrackingParticleRef, double> > tp;
     TrackingParticleRef tpr; 
     edm::RefToBase<reco::Track> tr(track);
-    if(pRecoToSim.find(tr) != pRecoToSim.end()){
-      tp = pRecoToSim[tr];
-      if(debugPrint) std::cout << "Reco Track pT: "  << track->pt() <<  " matched to " << tp.size() << " MC Tracks" << " associated with quality: " << tp.begin()->second << std::endl;
-      tpr = tp.begin()->first;
-      
-      trackParameters.m_particleId = (tpr->pdgId());
-      if(debugPrint) std::cout << "the pdg id of this track is " << (tpr->pdgId()) << std::endl;
-      //The parent vertex (from which this track was produced) has daughter particles.
-      //These are the desire siblings of this track which we need. 
-      TrackingParticleRefVector simSiblings = getTpSiblings(tpr);
-      
-      const TrackingParticle * sib; 
-      int numofsibs = 0;
-      std::vector<int> pdgidofsibs; pdgidofsibs.clear();
-      
-      if (simSiblings.isNonnull()) {
-        for(TrackingParticleRefVector::iterator si = simSiblings.begin(); si != simSiblings.end(); si++){
-          //Check if the current sibling is the track under study
-          if ( (*si) ==  tpr  ) {continue;}
-          sib = &(**si);
-          pdgidofsibs.push_back(sib->pdgId());
-          ++numofsibs;
-          PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetTrackSiblingRelationship(*m_pPandora, pftrack, sib)); 
-        }
-        if(debugPrint) {
-          std::cout << "This track has " << numofsibs << " sibling tracks with pdgids:" << std::endl; 
-          for (std::vector<int>::iterator sib_pdg_it = pdgidofsibs.begin(); sib_pdg_it != pdgidofsibs.end(); sib_pdg_it++){
-            std::cout << (*sib_pdg_it) << std::endl;
+    if(useRecoTrackAsssociation){
+      const reco::RecoToSimCollection pRecoToSim = *(rectosimCollection.product());		
+      if(pRecoToSim.find(tr) != pRecoToSim.end()){
+        tp = pRecoToSim[tr];
+        if(debugPrint) std::cout << "Reco Track pT: "  << track->pt() <<  " matched to " << tp.size() << " MC Tracks" << " associated with quality: " << tp.begin()->second << std::endl;
+        tpr = tp.begin()->first;
+        
+        trackParameters.m_particleId = (tpr->pdgId());
+        if(debugPrint) std::cout << "the pdg id of this track is " << (tpr->pdgId()) << std::endl;
+        //The parent vertex (from which this track was produced) has daughter particles.
+        //These are the desire siblings of this track which we need. 
+        TrackingParticleRefVector simSiblings = getTpSiblings(tpr);
+        
+        const TrackingParticle * sib; 
+        int numofsibs = 0;
+        std::vector<int> pdgidofsibs; pdgidofsibs.clear();
+        
+        if (simSiblings.isNonnull()) {
+          for(TrackingParticleRefVector::iterator si = simSiblings.begin(); si != simSiblings.end(); si++){
+            //Check if the current sibling is the track under study
+            if ( (*si) ==  tpr  ) {continue;}
+            sib = &(**si);
+            pdgidofsibs.push_back(sib->pdgId());
+            ++numofsibs;
+            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetTrackSiblingRelationship(*m_pPandora, pftrack, sib)); 
+          }
+          if(debugPrint) {
+            std::cout << "This track has " << numofsibs << " sibling tracks with pdgids:" << std::endl; 
+            for (std::vector<int>::iterator sib_pdg_it = pdgidofsibs.begin(); sib_pdg_it != pdgidofsibs.end(); sib_pdg_it++){
+              std::cout << (*sib_pdg_it) << std::endl;
+            }
           }
         }
-      }
-      else {
-        if(debugPrint) std::cout << "Particle pdgId = "<< (tpr->pdgId()) << " produced at rho = " << (tpr->vertex().Rho()) << ", z = " << (tpr->vertex().Z()) << ", has NO siblings!" << std::endl;
-      }
-    
-      //Now the track under study has daughter particles. To find them we study the decay vertices of the track
-      TrackingParticleRefVector simDaughters = getTpDaughters(tpr);
-      const TrackingParticle * dau; 
-      int numofdaus = 0;
-      std::vector<int> pdgidofdaus; pdgidofdaus.clear();
-
-      if (simDaughters.isNonnull()) {
-        for(TrackingParticleRefVector::iterator di = simDaughters.begin(); di != simDaughters.end(); di++){
-          //We have already checked that simDaughters don't contain the track under study
-          dau = &(**di);
-          pdgidofdaus.push_back(dau->pdgId());
-          ++numofdaus;
-          PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetTrackParentDaughterRelationship(*m_pPandora, pftrack, dau)); 
+        else {
+          if(debugPrint) std::cout << "Particle pdgId = "<< (tpr->pdgId()) << " produced at rho = " << (tpr->vertex().Rho()) << ", z = " << (tpr->vertex().Z()) << ", has NO siblings!" << std::endl;
         }
-        if(debugPrint) {
-          std::cout << "This track has " << numofdaus << " daughter tracks with pdgids:" << std::endl; 
-          for (std::vector<int>::iterator dau_pdg_it = pdgidofdaus.begin(); dau_pdg_it != pdgidofdaus.end(); dau_pdg_it++){
-            std::cout << (*dau_pdg_it) << std::endl;
+      
+        //Now the track under study has daughter particles. To find them we study the decay vertices of the track
+        TrackingParticleRefVector simDaughters = getTpDaughters(tpr);
+        const TrackingParticle * dau; 
+        int numofdaus = 0;
+        std::vector<int> pdgidofdaus; pdgidofdaus.clear();
+      
+        if (simDaughters.isNonnull()) {
+          for(TrackingParticleRefVector::iterator di = simDaughters.begin(); di != simDaughters.end(); di++){
+            //We have already checked that simDaughters don't contain the track under study
+            dau = &(**di);
+            pdgidofdaus.push_back(dau->pdgId());
+            ++numofdaus;
+            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetTrackParentDaughterRelationship(*m_pPandora, pftrack, dau)); 
           }
+          if(debugPrint) {
+            std::cout << "This track has " << numofdaus << " daughter tracks with pdgids:" << std::endl; 
+            for (std::vector<int>::iterator dau_pdg_it = pdgidofdaus.begin(); dau_pdg_it != pdgidofdaus.end(); dau_pdg_it++){
+              std::cout << (*dau_pdg_it) << std::endl;
+            }
+          }
+        }        
+        else {
+          if(debugPrint) std::cout << "Particle pdgId = "<< (tpr->pdgId()) << " produced at rho = " << (tpr->vertex().Rho()) << ", z = " << (tpr->vertex().Z()) << ", has NO daughters!" << std::endl;
         }
-      }        
-      else {
-        if(debugPrint) std::cout << "Particle pdgId = "<< (tpr->pdgId()) << " produced at rho = " << (tpr->vertex().Rho()) << ", z = " << (tpr->vertex().Z()) << ", has NO daughters!" << std::endl;
+      
       }
-
     }
 
     //The mass 
