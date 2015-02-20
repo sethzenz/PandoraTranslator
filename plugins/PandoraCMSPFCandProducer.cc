@@ -47,13 +47,14 @@
 
 #include "DataFormats/ParticleFlowCandidate/interface/PFCandidateFwd.h"
 #include "DataFormats/ParticleFlowCandidate/interface/PFCandidate.h"
-#include "DataFormats/ParticleFlowReco/interface/PFRecTrack.h"
-#include "DataFormats/ParticleFlowReco/interface/PFRecTrackFwd.h"
+
 #include "DataFormats/ParticleFlowReco/interface/PFCluster.h"
 #include "DataFormats/ParticleFlowReco/interface/PFClusterFwd.h"
 #include "DataFormats/ParticleFlowReco/interface/PFBlock.h"
 #include "DataFormats/ParticleFlowReco/interface/PFBlockFwd.h"
 
+#include "DataFormats/ParticleFlowReco/interface/PFBlockElementTrack.h"
+#include "DataFormats/ParticleFlowReco/interface/PFBlockElementCluster.h"
 
 //We need the speed of light
 #include "CLHEP/Units/PhysicalConstants.h"
@@ -98,7 +99,9 @@ pandora::Pandora * PandoraCMSPFCandProducer::m_pPandora = NULL;
 //
 PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iConfig) : 
   m_calibEE(ForwardSubdetector::HGCEE,"EE"), m_calibHEF(ForwardSubdetector::HGCHEF,"HEF"), m_calibHEB(ForwardSubdetector::HGCHEB,"HEB"), calibInitialized(false)
-{
+{  
+  produces<reco::PFClusterCollection>();
+  produces<reco::PFBlockCollection>();
   produces<reco::PFCandidateCollection>();
 
   //now do what ever initialization is needed
@@ -173,13 +176,17 @@ void PandoraCMSPFCandProducer::produce(edm::Event& iEvent, const edm::EventSetup
   prepareHits(iEvent);
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::ProcessEvent(*m_pPandora));
   preparePFO(iEvent);
-  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::Reset(*m_pPandora));
+  
+  edm::Handle<reco::PFRecHitCollection> HGCRecHitHandle;
+  iEvent.getByLabel(inputTagHGCrechit_, HGCRecHitHandle);
+  
+  edm::Handle<reco::PFRecTrackCollection> tkRefCollection;
+  iEvent.getByLabel(inputTagGeneralTracks_, tkRefCollection);
 
-  // NOW WE DO ALL THE HARD WORK
+  // now we do all the hard work?
+  convertPandoraToCMSSW(tkRefCollection,HGCRecHitHandle,iEvent);
 
-  std::auto_ptr< reco::PFCandidateCollection > dummyCollection(new reco::PFCandidateCollection);
-  iEvent.put(dummyCollection);
-
+   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::Reset(*m_pPandora));
 }
 
 void PandoraCMSPFCandProducer::initPandoraCalibrParameters()
@@ -1520,46 +1527,182 @@ TrackingParticleRefVector PandoraCMSPFCandProducer::getTpDaughters(TrackingParti
 }
 
 //make CMSSW PF objects from Pandora output
-void PandoraCMSPFCandProducer::convertPandoraToCMSSW(edm::Event& iEvent){
+void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFRecTrackCollection>& trackh,
+						     const edm::Handle<reco::PFRecHitCollection>& rechith, 
+						     edm::Event& iEvent){
+  const auto& pfrectracks = *trackh;
+  const auto& pfrechits = *rechith;
+
   const pandora::PfoList *pPfoList = NULL;
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::GetCurrentPfoList(*m_pPandora, pPfoList));
-
-  //make clusters
+  
+  //first loop: make clusters
   std::auto_ptr<reco::PFClusterCollection> clusters(new reco::PFClusterCollection);
-  for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(); itPFO != pPfoList->end(); ++itPFO){
+  std::unordered_multimap<unsigned,unsigned> pfos_to_clusters; // since pfos can be many to one pfos
+  std::unordered_multimap<unsigned,unsigned> pfos_to_tracks; // ditto for tracks
+  auto pfoBegin = pPfoList->cbegin();
+  unsigned cluster_idx = 0;
+  for (auto itPFO = pfoBegin; itPFO != pPfoList->cend(); ++itPFO){
+    size_t pfo_idx = std::distance(pfoBegin,itPFO);
     //loop over pandora clusters
-	const ClusterList &clusterList((*itPFO)->GetClusterList());
-	ClusterVector clusterVector(clusterList.begin(), clusterList.end());
-	for (ClusterVector::const_iterator clusterIter = clusterVector.begin(); clusterIter != clusterVector.end(); ++clusterIter){
-	  Cluster *pCluster = (*clusterIter);
-	  reco::PFCluster temp;
-	  
-	  //loop over calo hits in cluster
-	  const OrderedCaloHitList &orderedCaloHitList(pCluster->GetOrderedCaloHitList());
-      CaloHitList pCaloHitList;
-      orderedCaloHitList.GetCaloHitList(pCaloHitList);
-	  for (CaloHitList::const_iterator hitIter = pCaloHitList.begin(), hitIterEnd = pCaloHitList.end(); hitIter != hitIterEnd; ++hitIter){
-        
-	  }
+    const ClusterList &clusterList((*itPFO)->GetClusterList());
+    //ClusterVector clusterVector(clusterList.begin(), clusterList.end());
+    
+    // keep tabs on if this PFO was EM or HAD
+    const bool pfoIsEM = ( 22 == (*itPFO)->GetParticleId() || 11 == std::abs((*itPFO)->GetParticleId()) ) ;
+    
+    for (auto clusterIter = clusterList.cbegin(); clusterIter != clusterList.cend(); ++clusterIter){
+      // keep track of clusters used by the PFOs
+      
+      pfos_to_clusters.emplace(pfo_idx,cluster_idx++);
+      Cluster *pCluster = (*clusterIter);
+      reco::PFCluster temp;
+      
+      // setup basic energy determination
+      temp.setEmEnergy(pCluster->GetElectromagneticEnergy());
+      temp.setHadEnergy(pCluster->GetHadronicEnergy());
+      if( pfoIsEM ) {
+	temp.setEnergy(temp.emEnergy());
+      } else {
+	temp.setEnergy(temp.hadEnergy());
+      }
 
+      // set cluster axis and position information
+      const auto& pandoraAxis = pCluster->GetInitialDirection();
+      math::XYZVector axis(pandoraAxis.GetX(),pandoraAxis.GetY(),pandoraAxis.GetZ());
+      temp.setAxis(axis);
+      const auto& clusterFit = pCluster->GetFitToAllHitsResult();
+      if( clusterFit.IsFitSuccessful() ) {
+	const auto& pandoraPos = clusterFit.GetIntercept();
+	math::XYZPoint pos( pandoraPos.GetX(), pandoraPos.GetY(), pandoraPos.GetZ() );
+	temp.setPosition(pos);
+      } else {
+	const auto& pandoraPos = pCluster->GetCentroid(pCluster->GetInnerPseudoLayer());
+	math::XYZPoint pos( pandoraPos.GetX(), pandoraPos.GetY(), pandoraPos.GetZ() );
+	temp.setPosition(pos);
+      }
+
+      if( pCluster->IsTrackSeeded() ) {
+	const auto* pandoraTrack = pCluster->GetTrackSeed();
+	auto iter = recTrackMap.find(pandoraTrack->GetParentTrackAddress());
+	if( iter != recTrackMap.end() ) {
+	  temp.setTrack(pfrectracks[iter->second].trackRef());
+	  pfos_to_tracks.emplace(pfo_idx,iter->second);
+	} else {
+	  throw cms::Exception("TrackUsedButNotFound")
+	    << "Track used in PandoraPFA was not found in the original input track list!";
 	}
-	
-	
-	
-  }
+      }
+      
+      //loop over calo hits in cluster
+      const OrderedCaloHitList &orderedCaloHitList(pCluster->GetOrderedCaloHitList());      
+      if( orderedCaloHitList.size() ) {
+	const auto& firstlayer = *(orderedCaloHitList.begin());
+	const auto* firsthit = *(firstlayer.second->begin());
+	auto iter = recHitMap.find(firsthit->GetParentCaloHitAddress());
+	if( iter != recHitMap.end() ) {
+	  temp.setLayer(pfrechits[iter->second].layer());
+	} else {
+	  throw cms::Exception("TrackUsedButNotFound")
+	    << "Hit used in PandoraPFA was not found in the original input hit list!";
+	}
+      }
+      for (auto layerIter = orderedCaloHitList.begin(), layerIterEnd = orderedCaloHitList.end(); layerIter != layerIterEnd; ++layerIter) {	
+	const CaloHitList& hits_in_layer = *(layerIter->second);
+	for( auto hitIter = hits_in_layer.cbegin(), hitIterEnd = hits_in_layer.cend(); hitIter != hitIterEnd; ++hitIter ) {
+	  auto hit_index = recHitMap.find((*hitIter)->GetParentCaloHitAddress());
+	  if( hit_index != recHitMap.end() ) {
+	    reco::PFRecHitRef ref(rechith,hit_index->second);
+	    temp.addRecHitFraction(reco::PFRecHitFraction(ref,(*hitIter)->GetWeight()));
+	  } else {
+	    throw cms::Exception("TrackUsedButNotFound")
+	      << "Hit used in PandoraPFA was not found in the original input hit list!";
+	  }
+	} // loop over hits in layer
+      } // loop over layers
+      clusters->push_back(temp);
+    }//end clusters
+  }//end pfos
+  // put the clusters in the event and get the handle back
   edm::OrphanHandle<PFClusterCollection> clusterHandle = iEvent.put(clusters);
   
-  //make blocks
+  //make blocks (no need for maps here since blocks are 1:1 to pandora candidates
   std::auto_ptr<reco::PFBlockCollection> pfblocks(new reco::PFBlockCollection);
-  for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(); itPFO != pPfoList->end(); ++itPFO){
-  
+  for (auto itPFO = pPfoList->cbegin(); itPFO != pPfoList->cend(); ++itPFO){
+    const size_t pfo_idx = std::distance(pfoBegin,itPFO);
+    auto tk_range =  pfos_to_tracks.equal_range(pfo_idx);
+    auto clus_range =  pfos_to_clusters.equal_range(pfo_idx);
+    // setup block to add to
+    pfblocks->emplace_back( reco::PFBlock() );
+    reco::PFBlock& block = pfblocks->back();
+    // process tracks
+    for( auto tk_itr = tk_range.first; tk_itr != tk_range.second; ++tk_itr ) {
+      reco::PFRecTrackRef pftrackref = reco::PFRecTrackRef(trackh,tk_itr->second);  
+      std::unique_ptr<reco::PFBlockElementTrack> tk_elem( new reco::PFBlockElementTrack( pftrackref ) ); 
+      block.addElement(tk_elem.get());
+    }
+    // process clusters
+    for( auto clus_itr = clus_range.first; clus_itr != clus_range.second; ++clus_itr ) {
+      reco::PFClusterRef pfclusterref = reco::PFClusterRef(clusterHandle,clus_itr->second);  
+      std::unique_ptr<reco::PFBlockElementCluster> clus_elem( nullptr );
+      switch( pfclusterref->layer() ) {
+      case PFLayer::HGC_ECAL:
+	clus_elem.reset( new reco::PFBlockElementCluster( pfclusterref, reco::PFBlockElement::HGC_ECAL ) );
+	break;
+      case PFLayer::HGC_HCALF:
+	clus_elem.reset( new reco::PFBlockElementCluster( pfclusterref, reco::PFBlockElement::HGC_HCALF ) );
+	break;
+      case PFLayer::HGC_HCALB:
+	clus_elem.reset( new reco::PFBlockElementCluster( pfclusterref, reco::PFBlockElement::HGC_HCALB ) );
+	break;
+      default:
+	throw cms::Exception("PoorlyDefinedCluster")
+	  << "PFCluster from PandoraPFA does not have an assigned layer in HGC!";
+      }
+      block.addElement(clus_elem.get());
+    }
   }
   edm::OrphanHandle<PFBlockCollection> blockHandle = iEvent.put(pfblocks);
   
   //make candidates
   std::auto_ptr<reco::PFCandidateCollection> pandoraCands(new reco::PFCandidateCollection);
-  for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(); itPFO != pPfoList->end(); ++itPFO){
-  
+  for (auto itPFO = pPfoList->cbegin(); itPFO != pPfoList->cend(); ++itPFO){ 
+    const unsigned pfo_idx = std::distance(pfoBegin,itPFO);
+    const pandora::ParticleFlowObject& the_pfo = *(*itPFO);
+    // translate pandora pdgids to pf pi+/-, photon, k_long notation
+    const int pandoraPID = the_pfo.GetParticleId();
+    const int pandoraCharge = the_pfo.GetCharge();
+    reco::PFCandidate::ParticleType cmspfPID = reco::PFCandidate::X;
+    if( 22 == pandoraPID ) {
+      cmspfPID = reco::PFCandidate::gamma;
+    } else if( 0 == pandoraCharge ) { // anything that has no charge and isn't a photon is a neutral hadron
+      cmspfPID = reco::PFCandidate::h0;
+    } else if( pandoraCharge ) {
+      // LG disregarding electrons for now, ID is funky 20 Feb, 2015
+      if( 13 == std::abs(pandoraPID) ) {
+	cmspfPID = reco::PFCandidate::mu;
+      } else { // anything that's not a muon and has charge is a h+
+	cmspfPID = reco::PFCandidate::h;
+      }
+    } else {
+      throw cms::Exception("StrangeParticleID")
+	<< "PandoraPID " << pandoraPID << " appears to not be in the set of real numbers!";
+    }    
+    // get the p4
+    const float pandoraE = the_pfo.GetEnergy();
+    const pandora::CartesianVector& pandoraP3 = the_pfo.GetMomentum();
+    math::XYZTLorentzVector thep4(pandoraP3.GetX(),pandoraP3.GetY(),pandoraP3.GetZ(),pandoraE);
+    
+    pandoraCands->emplace_back( pandoraCharge, thep4, cmspfPID  );
+    reco::PFCandidate& cand = pandoraCands->back();
+    
+    // set track as well as raw and corrected calorimeter energies
+    
+    // setup any remaining information about what's in this PF Candidate
+    reco::PFBlockRef blockref(blockHandle,pfo_idx);    
+    for( unsigned elem_idx = 0; elem_idx < blockref->elements().size(); ++elem_idx ) {
+      cand.addElementInBlock(blockref,elem_idx);
+    }
   }
   iEvent.put(pandoraCands);
 }
