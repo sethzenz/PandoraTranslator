@@ -49,6 +49,11 @@
 #include "DataFormats/ParticleFlowCandidate/interface/PFCandidate.h"
 #include "DataFormats/ParticleFlowReco/interface/PFRecTrack.h"
 #include "DataFormats/ParticleFlowReco/interface/PFRecTrackFwd.h"
+#include "DataFormats/ParticleFlowReco/interface/PFCluster.h"
+#include "DataFormats/ParticleFlowReco/interface/PFClusterFwd.h"
+#include "DataFormats/ParticleFlowReco/interface/PFBlock.h"
+#include "DataFormats/ParticleFlowReco/interface/PFBlockFwd.h"
+
 
 //We need the speed of light
 #include "CLHEP/Units/PhysicalConstants.h"
@@ -1514,6 +1519,51 @@ TrackingParticleRefVector PandoraCMSPFCandProducer::getTpDaughters(TrackingParti
     return TrackingParticleRefVector();
   }
 
+}
+
+//make CMSSW PF objects from Pandora output
+void PandoraCMSPFCandProducer::convertPandoraToCMSSW(edm::Event& iEvent){
+  const pandora::PfoList *pPfoList = NULL;
+  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::GetCurrentPfoList(*m_pPandora, pPfoList));
+
+  //make clusters
+  std::auto_ptr<reco::PFClusterCollection> clusters(new reco::PFClusterCollection);
+  for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(); itPFO != pPfoList->end(); ++itPFO){
+    //loop over pandora clusters
+	const ClusterList &clusterList((*itPFO)->GetClusterList());
+	ClusterVector clusterVector(clusterList.begin(), clusterList.end());
+	for (ClusterVector::const_iterator clusterIter = clusterVector.begin(); clusterIter != clusterVector.end(); ++clusterIter){
+	  Cluster *pCluster = (*clusterIter);
+	  reco::PFCluster temp;
+	  
+	  //loop over calo hits in cluster
+	  const OrderedCaloHitList &orderedCaloHitList(pCluster->GetOrderedCaloHitList());
+      CaloHitList pCaloHitList;
+      orderedCaloHitList.GetCaloHitList(pCaloHitList);
+	  for (CaloHitList::const_iterator hitIter = pCaloHitList.begin(), hitIterEnd = pCaloHitList.end(); hitIter != hitIterEnd; ++hitIter){
+        
+	  }
+
+	}
+	
+	
+	
+  }
+  edm::OrphanHandle<PFClusterCollection> clusterHandle = iEvent.put(clusters);
+  
+  //make blocks
+  std::auto_ptr<reco::PFBlockCollection> pfblocks(new reco::PFBlockCollection);
+  for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(); itPFO != pPfoList->end(); ++itPFO){
+  
+  }
+  edm::OrphanHandle<PFBlockCollection> blockHandle = iEvent.put(pfblocks);
+  
+  //make candidates
+  std::auto_ptr<reco::PFCandidateCollection> pandoraCands(new reco::PFCandidateCollection);
+  for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(); itPFO != pPfoList->end(); ++itPFO){
+  
+  }
+  iEvent.put(pandoraCands);
 }
 
 

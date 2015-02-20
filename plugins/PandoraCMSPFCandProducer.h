@@ -242,6 +242,8 @@ public:
   TrackingParticleRefVector getTpSiblings(TrackingParticleRef tp);
   TrackingParticleRefVector getTpDaughters(TrackingParticleRef tp);
 
+  void convertPandoraToCMSSW(edm::Event& iEvent);
+  
   std::string _outputFileName;
   edm::FileInPath m_pandoraSettingsXmlFile;
 
