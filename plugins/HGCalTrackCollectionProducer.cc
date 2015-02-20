@@ -116,7 +116,8 @@ void HGCalTrackCollectionProducer::beginLuminosityBlock(const edm::LuminosityBlo
     auto lastLayerIt = dddCons.getLastTrForm();
     for(auto layerIt=firstLayerIt; layerIt !=lastLayerIt; layerIt++) {
       float Z(fabs(layerIt->h3v.z()));
-      float Radius(dddCons.getLastModule(true)->tl+layerIt->h3v.perp());
+	  auto lastmod = std::reverse_iterator<std::vector<HGCalDDDConstants::hgtrap>::const_iterator>(dddCons.getLastModule(true));
+      float Radius(lastmod->tl+layerIt->h3v.perp());
       zrhoCoord[Z]=Radius;
     }
     for(auto it=zrhoCoord.begin(); it != zrhoCoord.end(); it++) {
