@@ -898,8 +898,6 @@ void PandoraCMSPFCandProducer::prepareHits( edm::Event& iEvent)
     else if (detid.subdetId() == 4) ProcessRecHits(rh, i, HGCHEFGeometry, m_calibHEF, nCaloHitsHEF, nNotFoundHEF, pv, pandora::HCAL, pandora::ENDCAP, caloHitParameters);
     else if (detid.subdetId() == 5) ProcessRecHits(rh, i, HGCHEBGeometry, m_calibHEB, nCaloHitsHEB, nNotFoundHEB, pv, pandora::HCAL, pandora::ENDCAP, caloHitParameters);
     else continue;
-    
-    recHitMap.emplace((void*)rh,i); //associate parent address with collection index
   }
 
   if(debugHisto){
