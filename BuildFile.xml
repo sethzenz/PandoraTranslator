@@ -1,4 +1,5 @@
 <use name="pandorapfanew_interface"/>
+<use name="FWCore/Utilities"/>
 
 <export>
   <lib   name="1"/>
