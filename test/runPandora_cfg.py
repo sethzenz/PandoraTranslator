@@ -36,7 +36,7 @@ process.TrackAssociatorRecord = cms.ESSource("EmptyESSource",
 )
 process.load('SimTracker.TrackAssociation.quickTrackAssociatorByHits_cfi')
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(2) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(100) )
 
 # this is for the event display 
 #process.EveService = cms.Service("EveService")
@@ -62,9 +62,13 @@ process.source = cms.Source("PoolSource",
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePi0E20.root'
 #	 'file:/afs/cern.ch/user/l/lgray/work/public/CMSSW_6_2_X_SLHC_2014-07-17-0200/src/matrix_tests/140_pu/step3.root'
 #        "/store/cmst3/group/hgcal/CMSSW/Single22_CMSSW_6_2_0_SLHC23_patch1/RECO-PU0/Events_22_20_80.root"
+<<<<<<< HEAD
 #        Pho100 # all photon files, 100 GeV
         #'file:simple_jets.root'
         'file:/tmp/lgray/6EC19337-A7AE-E411-999E-0025905A613C.root'
+=======
+        
+>>>>>>> ee87f98... WIP customize for pandora
     )
 )
 
@@ -77,22 +81,7 @@ process.load('Configuration.EventContent.EventContent_cff')
 process.load("Configuration.StandardSequences.Reconstruction_cff")
 process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHGCEE_cfi")
 
-process.HGCalTrackCollection = cms.EDProducer("HGCalTrackCollectionProducer",
-    src = cms.InputTag("pfTrack"),
-    debug = cms.bool(False),
-    # From GeneralTracksImporter                                                                                                          
-    useIterativeTracking = cms.bool(True),
-    DPtOverPtCuts_byTrackAlgo = cms.vdouble(-1.0,-1.0,-1.0,
-                                             1.0,1.0),
-    NHitCuts_byTrackAlgo = cms.vuint32(3,3,3,3,3),
-
-    # From HGCClusterizer                                                                                                                 
-     hgcalGeometryNames = cms.PSet( HGC_ECAL  = cms.string('HGCalEESensitive'),
-#     HGC_HCALF = cms.string('HGCalHESiliconSensitive'),                                                
-#     HGC_HCALB = cms.string('HGCalHEScintillatorSensitive') ),                                          
-    ),
-    UseFirstLayerOnly = cms.bool(True)
-    )
+process.load('HGCal/PandoraTranslator/HGCALTrackCollection_cfi')
 
 process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
     "TrackAssociatorEDProducer",
@@ -102,6 +91,7 @@ process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
     ignoremissingtrackcollection = cms.untracked.bool(False)
     )
 
+<<<<<<< HEAD
 process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
     debugPrint = cms.bool(False), #for cout statements
     debugHisto = cms.bool(False), #for diagnostic/calibration histograms
@@ -127,6 +117,9 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
     useOverburdenCorrection = cms.bool(False), #disabled until the overburden values make sense
     outputFile = cms.string('pandoraoutput.root')
 )
+=======
+process.load('HGCal.PandoraTranslator.runPandora_cfi')
+>>>>>>> ee87f98... WIP customize for pandora
 
 # To use the hgcTrackerInteractionsFilter, you need the following additional code
 #

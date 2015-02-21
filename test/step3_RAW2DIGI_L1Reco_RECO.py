@@ -28,7 +28,7 @@ process.maxEvents = cms.untracked.PSet(
 # Input source
 process.source = cms.Source("PoolSource",
     secondaryFileNames = cms.untracked.vstring(),
-    fileNames = cms.untracked.vstring('/store/relval/CMSSW_6_2_0_SLHC23_patch1/RelValSingleGammaPt35Extended/GEN-SIM-DIGI-RAW/PH2_1K_FB_V6_UPGHGCalV5-v2/00000/ACE2CA2B-459F-E411-9300-02163E00EAA5.root')
+    fileNames = cms.untracked.vstring('file:/tmp/lgray/step2.root')
 )
 
 process.options = cms.untracked.PSet(
@@ -48,7 +48,7 @@ process.FEVTDEBUGHLToutput = cms.OutputModule("PoolOutputModule",
     splitLevel = cms.untracked.int32(0),
     eventAutoFlushCompressedSize = cms.untracked.int32(5242880),
     outputCommands = process.FEVTDEBUGHLTEventContent.outputCommands,
-    fileName = cms.untracked.string('file:step3.root'),
+    fileName = cms.untracked.string('file:/tmp/lgray/step3.root'),
     dataset = cms.untracked.PSet(
         filterName = cms.untracked.string(''),
         dataTier = cms.untracked.string('GEN-SIM-RECO')
