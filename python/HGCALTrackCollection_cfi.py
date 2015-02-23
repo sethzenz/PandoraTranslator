@@ -1,3 +1,5 @@
+import FWCore.ParameterSet.Config as cms
+
 HGCalTrackCollection = cms.EDProducer(
     "HGCalTrackCollectionProducer",
     src = cms.InputTag("pfTrack"),
@@ -14,4 +16,4 @@ HGCalTrackCollection = cms.EDProducer(
 #     HGC_HCALB = cms.string('HGCalHEScintillatorSensitive') ),                                          
                                     ),
     UseFirstLayerOnly = cms.bool(True)
-    )
+)
