@@ -7,6 +7,8 @@ cmsrel CMSSW_6_2_0_SLHC23_patch2
 
 cd CMSSW_6_2_0_SLHC23_patch2/src && cmsenv
 
+git cms-init
+
 git clone git@github.com:lgray/PandoraTranslator.git ./HGCal/PandoraTranslator
 
-HGCal/PandoraTranslator/scripts/buildPandoraInstallTool.sh
+source HGCal/PandoraTranslator/scripts/buildPandoraInstallTool.sh
