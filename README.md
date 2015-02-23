@@ -1,7 +1,7 @@
 # PandoraTranslator
 CMS -> PandoraPFA -> CMS Particle Flow Translator
 
-== instructions on lxplus or cmslpc ==
+## instructions on lxplus or cmslpc
 
 cmsrel CMSSW_6_2_0_SLHC23_patch2
 

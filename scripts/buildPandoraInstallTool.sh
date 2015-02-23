@@ -12,13 +12,13 @@ then
   return 1
 fi
 
-#NFILES=`ls -1 ${CMSSW_BASE}/src | wc -l`
-#if [ ! ${NFILES} = "1" ]
-#then
-#  echo "CMSSW area appears to have extra files already. Start over and read README carefully."
-#  echo "You can remove this condition from the setup script if you wish, but proceed with caution!"
-#  return 1
-#fi
+NFILES=`ls -1 ${CMSSW_BASE}/src | wc -l`
+if [ ! ${NFILES} = "1" ]
+then
+  echo "CMSSW area appears to have extra files already. Start over and read README carefully."
+  echo "You can remove this condition from the setup script if you wish, but proceed with caution!"
+  return 1
+fi
 
 startDir=`pwd`
 cd ${CMSSW_BASE}
