@@ -36,7 +36,7 @@ process.TrackAssociatorRecord = cms.ESSource("EmptyESSource",
 )
 process.load('SimTracker.TrackAssociation.quickTrackAssociatorByHits_cfi')
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(2) )
 
 # this is for the event display 
 #process.EveService = cms.Service("EveService")
@@ -62,7 +62,9 @@ process.source = cms.Source("PoolSource",
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePi0E20.root'
 #	 'file:/afs/cern.ch/user/l/lgray/work/public/CMSSW_6_2_X_SLHC_2014-07-17-0200/src/matrix_tests/140_pu/step3.root'
 #        "/store/cmst3/group/hgcal/CMSSW/Single22_CMSSW_6_2_0_SLHC23_patch1/RECO-PU0/Events_22_20_80.root"
-        Pho100 # all photon files, 100 GeV
+#        Pho100 # all photon files, 100 GeV
+        #'file:simple_jets.root'
+        'file:/tmp/lgray/6EC19337-A7AE-E411-999E-0025905A613C.root'
     )
 )
 
@@ -105,7 +107,7 @@ process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
     debugHisto = cms.bool(False), #for diagnostic/calibration histograms
     HGCrechitCollection  = cms.InputTag("particleFlowRecHitHGCEE",""), 
     generaltracks = cms.InputTag("HGCalTrackCollection","TracksInHGCal"),
-    useRecoTrackAsssociation = cms.bool(True), #needed to turn off for 140PU
+    useRecoTrackAsssociation = cms.bool(False), #needed to turn off for 140PU
     tPRecoTrackAsssociation= cms.InputTag("trackingParticleRecoTrackAsssociation"),
     genParticles= cms.InputTag("genParticles"),
 #    inputconfigfile = cms.string('PandoraSettingsDefault_WithoutMonitoring.xml'),
@@ -138,7 +140,7 @@ process.FEVTDEBUGHLToutput = cms.OutputModule("PoolOutputModule",
     splitLevel = cms.untracked.int32(0),
     eventAutoFlushCompressedSize = cms.untracked.int32(5242880),
     outputCommands = process.FEVTDEBUGHLTEventContent.outputCommands,
-    fileName = cms.untracked.string('file:step_pandora.root'),
+    fileName = cms.untracked.string('file:/tmp/lgray/step_pandora.root'),
     dataset = cms.untracked.PSet(
         filterName = cms.untracked.string(''),
         dataTier = cms.untracked.string('GEN-SIM-RECO')
@@ -146,11 +148,11 @@ process.FEVTDEBUGHLToutput = cms.OutputModule("PoolOutputModule",
 )
 process.FEVTDEBUGHLToutput.outputCommands.append('keep *_pandorapfanew_*_*')
 
-process.reconstruction_step = cms.Path(process.trackerIntFilter*
+process.reconstruction_step = cms.Path(#process.trackerIntFilter*
                                        process.particleFlowRecHitHGCEE*
                                        process.pfTrack*
                                        process.HGCalTrackCollection*
-                                       process.trackingParticleRecoTrackAsssociation*
+                                       #process.trackingParticleRecoTrackAsssociation*
                                        process.pandorapfanew)
 process.FEVTDEBUGHLToutput_step = cms.EndPath(process.FEVTDEBUGHLToutput)
 

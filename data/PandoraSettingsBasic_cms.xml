@@ -25,7 +25,7 @@
     <!-- ALGORITHM SETTINGS -->
 
     <!-- Set calo hit properties, then select tracks and hits to use for clustering -->
-    <algorithm type = "CaloHitPreparation"/>
+    <algorithm type = "CaloHitPreparationFast"/>
     <algorithm type = "EventPreparation">
         <OutputTrackListName>Tracks</OutputTrackListName>
         <OutputCaloHitListName>CaloHits</OutputCaloHitListName>

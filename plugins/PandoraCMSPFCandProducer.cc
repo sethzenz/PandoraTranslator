@@ -2,6 +2,7 @@
 #include "HGCal/PandoraTranslator/interface/CMSBFieldPlugin.h"
 #include "HGCal/PandoraTranslator/interface/CMSPseudoLayerPlugin.h"
 #include "LCContent.h"
+#include "LCContentFast.h"
 #include "HGCal/PandoraTranslator/interface/CMSTemplateAlgorithm.h"
 #include "PandoraMonitoringApi.h"
 
@@ -129,6 +130,8 @@ PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iCon
 // NS // SHOWER PROFILE CALCULATOR
   
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, LCContent::RegisterAlgorithms(*m_pPandora));
+
+  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, LCContentFast::RegisterAlgorithms(*m_pPandora));
 
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, cms_content::RegisterBasicPlugins(*m_pPandora));
 
@@ -1288,7 +1291,7 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
       unsigned int lastLayer = 0;
 
       for (ClusterVector::const_iterator clusterIter = clusterVector.begin(), clusterIterEnd = clusterVector.end(); clusterIter != clusterIterEnd; ++clusterIter) {
-        Cluster *pCluster = (*clusterIter);
+        const Cluster *pCluster = (*clusterIter);
         //ene_em  = pCluster->GetElectromagneticEnergy();
         //ene_had = pCluster->GetHadronicEnergy();
         // hits
@@ -1382,7 +1385,7 @@ void PandoraCMSPFCandProducer::preparePFO(edm::Event& iEvent){
       ene_track=0; 
       
       for (TrackVector::const_iterator trackIter = trackVector.begin(), trackIterEnd = trackVector.end(); trackIter != trackIterEnd; ++trackIter) {
-        pandora::Track *pPandoraTrack = (*trackIter);
+        const pandora::Track *pPandoraTrack = (*trackIter);
         // Extract pandora track states
         const TrackState &trackState(pPandoraTrack->GetTrackStateAtStart());
         const CartesianVector &momentum(trackState.GetMomentum());
@@ -1493,7 +1496,7 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
       // keep track of clusters used by the PFOs
       
       pfos_to_clusters.emplace(pfo_idx,cluster_idx++);
-      Cluster *pCluster = (*clusterIter);
+      const Cluster *pCluster = (*clusterIter);
       reco::PFCluster temp;
       
       // setup basic energy determination
