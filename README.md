@@ -12,3 +12,7 @@ git cms-init
 git clone git@github.com:lgray/PandoraTranslator.git ./HGCal/PandoraTranslator
 
 source HGCal/PandoraTranslator/scripts/buildPandoraInstallTool.sh
+
+git clone https://github.com/sethzenz/HGCanalysis.git --branch hacked-interactions-filter UserCode/HGCanalysis
+
+scram b -j 9

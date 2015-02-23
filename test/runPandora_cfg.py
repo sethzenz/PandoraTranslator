@@ -81,12 +81,6 @@ process.load('HGCal/PandoraTranslator/HGCALTrackCollection_cfi')
 
 process.load('HGCal.PandoraTranslator.runPandora_cfi')
 
-# To use the hgcTrackerInteractionsFilter, you need the following additional code
-#
-# cd ${CMSSW_BASE}/src
-# git clone https://github.com/sethzenz/HGCanalysis.git --branch hacked-interactions-filter UserCode/HGCanalysis
-# cd Usercode ; scram b -j 9
-
 process.load("UserCode/HGCanalysis/hgcTrackerInteractionsFilter_cfi")
 
 process.FEVTDEBUGHLToutput = cms.OutputModule("PoolOutputModule",
