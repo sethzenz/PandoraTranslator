@@ -1810,7 +1810,11 @@ PandoraCMSPFCandProducer::beginLuminosityBlock(edm::LuminosityBlock const& iLumi
   prepareGeometry() ;
   
   //rebuild pandora 
-  PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::ReadSettings(*m_pPandora, m_pandoraSettingsXmlFile.fullPath()));
+  if( pandora::STATUS_CODE_SUCCESS != PandoraApi::ReadSettings(*m_pPandora, m_pandoraSettingsXmlFile.fullPath()) ) {
+    throw cms::Exception("InvalidXMLConfig")
+      << "Unable to parse pandora configuration file";
+  }
+  //PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::ReadSettings(*m_pPandora, m_pandoraSettingsXmlFile.fullPath()));
 }
 
 

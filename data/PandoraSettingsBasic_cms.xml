@@ -48,16 +48,16 @@
                 <algorithm type = "ShowerMipMerging3"/>
                 <algorithm type = "ShowerMipMerging4"/>
                 <algorithm type = "ProximityBasedMerging">
-                    <algorithm type = "TrackClusterAssociation"/>
+                    <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
                 <algorithm type = "ConeBasedMerging">
-                    <algorithm type = "TrackClusterAssociation"/>
+                    <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
                 <algorithm type = "MipPhotonSeparation">
-                    <algorithm type = "TrackClusterAssociation"/>
+                    <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
                 <algorithm type = "SoftClusterMergingFast">
-                    <algorithm type = "TrackClusterAssociation"/>
+                    <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
                 <algorithm type = "IsolatedHitMerging"/>
             </associationAlgorithms>
@@ -208,21 +208,21 @@
                 <algorithm type = "ShowerMipMerging3"/>
                 <algorithm type = "ShowerMipMerging4"/>
                 <algorithm type = "ProximityBasedMerging">
-                    <algorithm type = "TrackClusterAssociation"/>
+                    <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
                 <algorithm type = "ConeBasedMerging">
-                    <algorithm type = "TrackClusterAssociation"/>
+                    <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
                 <algorithm type = "MipPhotonSeparation">
-                    <algorithm type = "TrackClusterAssociation"/>
+                    <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
                 <algorithm type = "SoftClusterMergingFast">
-                    <algorithm type = "TrackClusterAssociation"/>
+                    <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
                 <algorithm type = "IsolatedHitMerging"/>
             </associationAlgorithms>
         </algorithm>
-        <algorithm type = "TrackClusterAssociation" description = "TrackClusterAssociation"></algorithm>
+        <algorithm type = "TrackClusterAssociationFast" description = "TrackClusterAssociation"></algorithm>
         <UsingOrderedAlgorithms>true</UsingOrderedAlgorithms>
         <ShouldUseForcedClustering>true</ShouldUseForcedClustering>
         <algorithm type = "ForcedClustering" description = "ForcedClustering"/>
@@ -244,14 +244,14 @@
             <algorithm type = "ConeClusteringFast" instance = "Reclustering12"/>
         </clusteringAlgorithms>
         <algorithm type = "TopologicalAssociationParent" description = "ClusterAssociation" instance = "reclusterAssociation"></algorithm>
-        <algorithm type = "TrackClusterAssociation" description = "TrackClusterAssociation"></algorithm>
+        <algorithm type = "TrackClusterAssociationFast" description = "TrackClusterAssociation"></algorithm>
         <UsingOrderedAlgorithms>true</UsingOrderedAlgorithms>
         <ShouldUseForcedClustering>true</ShouldUseForcedClustering>
         <algorithm type = "ForcedClustering" description = "ForcedClustering"/>
     </algorithm>
 
     <algorithm type = "TrackDrivenMerging">
-        <algorithm type = "TrackClusterAssociation" description = "TrackClusterAssociation"></algorithm>
+        <algorithm type = "TrackClusterAssociationFast" description = "TrackClusterAssociation"></algorithm>
     </algorithm>
 
     <algorithm type = "ResolveTrackAssociations">
@@ -270,7 +270,7 @@
             <algorithm type = "ConeClusteringFast" instance = "Reclustering12"/>
         </clusteringAlgorithms>
         <algorithm type = "TopologicalAssociationParent" description = "ClusterAssociation" instance = "reclusterAssociation"></algorithm>
-        <algorithm type = "TrackClusterAssociation" description = "TrackClusterAssociation"></algorithm>
+        <algorithm type = "TrackClusterAssociationFast" description = "TrackClusterAssociation"></algorithm>
         <UsingOrderedAlgorithms>true</UsingOrderedAlgorithms>
         <ShouldUseForcedClustering>true</ShouldUseForcedClustering>
         <algorithm type = "ForcedClustering" description = "ForcedClustering"/>
@@ -295,7 +295,7 @@
             <algorithm type = "ConeClusteringFast" instance = "Reclustering12"/>
         </clusteringAlgorithms>
         <algorithm type = "TopologicalAssociationParent" description = "ClusterAssociation" instance = "reclusterAssociation"></algorithm>
-        <algorithm type = "TrackClusterAssociation" description = "TrackClusterAssociation"></algorithm>
+        <algorithm type = "TrackClusterAssociationFast" description = "TrackClusterAssociation"></algorithm>
         <UsingOrderedAlgorithms>true</UsingOrderedAlgorithms>
     </algorithm>
 
@@ -318,7 +318,7 @@
             <algorithm type = "ConeClusteringFast" instance = "Reclustering12"/>
         </clusteringAlgorithms>
         <algorithm type = "TopologicalAssociationParent" description = "ClusterAssociation" instance = "reclusterAssociation"></algorithm>
-        <algorithm type = "TrackClusterAssociation" description = "TrackClusterAssociation"></algorithm>
+        <algorithm type = "TrackClusterAssociationFast" description = "TrackClusterAssociation"></algorithm>
         <UsingOrderedAlgorithms>true</UsingOrderedAlgorithms>
         <ShouldUseForcedClustering>true</ShouldUseForcedClustering>
         <algorithm type = "ForcedClustering" description = "ForcedClustering"/>
@@ -326,11 +326,11 @@
 
     <!-- Photon recovery -->
     <algorithm type = "PhotonRecovery">
-        <algorithm type = "TrackClusterAssociation"/>
+        <algorithm type = "TrackClusterAssociationFast"/>
     </algorithm>
 
     <algorithm type = "MuonPhotonSeparation">
-        <algorithm type = "TrackClusterAssociation"/>
+        <algorithm type = "TrackClusterAssociationFast"/>
     </algorithm>
 
     <!-- Prepare particle flow objects -->
@@ -339,7 +339,7 @@
         <MergedCandidateListName>PfoCandidates</MergedCandidateListName>
         <PfoTrackListName>PfoCreation</PfoTrackListName>
         <trackClusterAssociationAlgorithms>
-            <algorithm type = "TrackClusterAssociation"/>
+            <algorithm type = "TrackClusterAssociationFast"/>
             <algorithm type = "LoopingTrackAssociation"/>
             <algorithm type = "TrackRecovery"/>
             <algorithm type = "TrackRecoveryHelix"/>
@@ -347,7 +347,7 @@
         </trackClusterAssociationAlgorithms>
     </algorithm>
 
-    <algorithm type = "MainFragmentRemoval"/>
+    <algorithm type = "MainFragmentRemovalFast"/>
     <algorithm type = "NeutralFragmentRemoval"/>
     <algorithm type = "PhotonFragmentRemoval"/>
 

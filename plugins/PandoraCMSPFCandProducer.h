@@ -160,10 +160,16 @@ class CalibHGC {
       initialized = true;
     }
     virtual void getLayerProperties() {
-      for(unsigned layer = 1; layer <= m_TotalLayers; layer++){        
-        m_absorberCorrectionEM.push_back(nCellRadiationLengths[layer]/calibrationRadiationLength);
+      for(unsigned layer = 1; layer <= m_TotalLayers; layer++){     
+	m_absorberCorrectionEM.push_back(nCellRadiationLengths[layer]/calibrationRadiationLength);
         m_absorberCorrectionHAD.push_back(nCellInteractionLengths[layer]/calibrationInteractionLength);
-        if(debug) std::cout << m_name << ": absCorrEM = " << m_absorberCorrectionEM.back() << ", absCorrHAD = " << m_absorberCorrectionHAD.back() << std::endl;
+        if(debug) {
+	  std::cout << m_name << ": nCellRadiationLengths = " << nCellRadiationLengths[layer] 
+		    << " calibrationRadiationLength = " << calibrationRadiationLength << std::endl;
+	  std::cout << m_name << ": nCellInteractionLengths = " << nCellInteractionLengths[layer] 
+		    << " calibrationInteractionLength = " << calibrationInteractionLength << std::endl;
+	  std::cout << m_name << ": absCorrEM = " << m_absorberCorrectionEM.back() << ", absCorrHAD = " << m_absorberCorrectionHAD.back() << std::endl;
+	}
         
         m_energyWeightEM.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameEM));
         m_energyWeightHAD.push_back(m_stm->getCorrectionAtPoint(layer+1,m_stm_nameLayer,m_stm_nameHAD));

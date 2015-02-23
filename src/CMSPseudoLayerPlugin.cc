@@ -10,6 +10,8 @@
 
 #include "HGCal/PandoraTranslator/interface/CMSPseudoLayerPlugin.h"
 
+#include "FWCore/Utilities/interface/Exception.h"
+
 using namespace pandora;
 
 namespace cms_content
@@ -53,9 +55,18 @@ unsigned int CMSPseudoLayerPlugin::GetPseudoLayer(const CartesianVector &positio
   const float rCoordinate(std::sqrt(positionVector.GetX() * positionVector.GetX() + positionVector.GetY() * positionVector.GetY()));
   
     if ((zCoordinate > m_endCapOuterEdgeZ) || (rCoordinate > std::max(m_barrelOuterEdgeR,m_endCapOuterEdgeR))) {
+      if( (zCoordinate > m_endCapOuterEdgeZ) ) {
+	throw cms::Exception("BadRecHit")
+	  << " Rechit exists outside of CMS detector!";
+      }
+      unsigned int pseudoLayer(0);
+      // hack -> since we only use the HGC hits assume we're in the endcap
+      PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, this->FindMatchingLayer(zCoordinate, m_endCapLayerPositions, pseudoLayer));
+      /*
       std::cout << "You die here because z = " << zCoordinate << " (" << m_endCapOuterEdgeZ << ") and r = " << rCoordinate 
 		<< " (" << m_barrelOuterEdgeR << "," << m_endCapOuterEdgeR << ")" << std::endl; 
-      return 0; // NS FIX temporary <=============!!!!!!!!!!!! 
+      */
+      return pseudoLayer; // NS FIX temporary <=============!!!!!!!!!!!! 
         throw pandora::StatusCodeException(pandora::STATUS_CODE_NOT_FOUND);
     }
 
