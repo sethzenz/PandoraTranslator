@@ -389,7 +389,7 @@ void PandoraCMSPFCandProducer::prepareGeometry(){ // function to setup a geometr
     TH1F* h_x0 = (TH1F*)file->Get("x0");
     TH1F* h_lambda = (TH1F*)file->Get("lambda");
     unsigned h_max = h_x0->GetNbinsX();
-    for(unsigned ih = 1; ih < h_max; ih++){
+    for(unsigned ih = 1; ih <= h_max; ih++){
         if(ih <= nHGCeeLayers) {
             m_calibEE.nCellRadiationLengths.push_back(h_x0->GetBinContent(ih));
             m_calibEE.nCellInteractionLengths.push_back(h_lambda->GetBinContent(ih));
