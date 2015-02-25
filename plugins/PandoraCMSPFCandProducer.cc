@@ -1506,6 +1506,11 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
       const Cluster *pCluster = (*clusterIter);
       reco::PFCluster temp;
       
+      if( pCluster->GetOrderedCaloHitList().size() == 0 ) {
+	throw cms::Exception("EmptyClusterOnPFO")
+	  << " cluster is empty, wtf. " ;
+      }
+
       // setup basic energy determination
       temp.setEmEnergy(pCluster->GetElectromagneticEnergy());
       temp.setHadEnergy(pCluster->GetHadronicEnergy());
@@ -1605,7 +1610,7 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
         break;
       default:
         throw cms::Exception("PoorlyDefinedCluster")
-          << "PFCluster from PandoraPFA does not have an assigned layer in HGC!";
+          << pfclusterref->layer() << " PFCluster from PandoraPFA does not have an assigned layer in HGC!";
       }
       block.addElement(clus_elem.get());
     }
