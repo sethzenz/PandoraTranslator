@@ -1575,6 +1575,16 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
       } // loop over layers
       clusters->push_back(temp);
     }//end clusters
+    // tail catcher for the tracks on the pfo
+    for( const auto* pandoraTrack : (*itPFO)->GetTrackList() ) {
+      auto iter = recTrackMap.find(pandoraTrack->GetParentTrackAddress());
+      if( iter != recTrackMap.end() ) {
+	pfos_to_tracks.emplace(pfo_idx,iter->second);
+      } else {
+	throw cms::Exception("TrackUsedButNotFound")
+	  << "Track used in PandoraPFA was not found in the original input track list!";
+      }
+    }
   }//end pfos
   // put the clusters in the event and get the handle back
   edm::OrphanHandle<PFClusterCollection> clusterHandle = iEvent.put(clusters);
@@ -1631,7 +1641,7 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
       cmspfPID = reco::PFCandidate::gamma;
     } else if( 0 == pandoraCharge ) { // anything that has no charge and isn't a photon is a neutral hadron
       cmspfPID = reco::PFCandidate::h0;
-    } else if( pandoraCharge ) {
+    } else if( 0 != pandoraCharge ) {
       // LG disregarding electrons for now, ID is funky 20 Feb, 2015
       if( 13 == std::abs(pandoraPID) ) {
         cmspfPID = reco::PFCandidate::mu;
@@ -1664,7 +1674,7 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
       }
       cand.addElementInBlock(blockref,elem_idx);
     }
-    if( hardest_track.isNonnull() && pandoraCharge != 0) cand.setTrackRef(hardest_track);
+    if( hardest_track.isNonnull() && pandoraCharge != 0) cand.setTrackRef(hardest_track);   
   }
   iEvent.put(pandoraCands);
   iEvent.put(pandoraElectronCands,electronOutputCol_); // SZ Feb 25 not filled yet
