@@ -1637,13 +1637,21 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
     pandoraCands->emplace_back( pandoraCharge, thep4, cmspfPID  );
     reco::PFCandidate& cand = pandoraCands->back();
     
-    // set track as well as raw and corrected calorimeter energies
+    // set track as well as raw and corrected calorimeter energies    
     
     // setup any remaining information about what's in this PF Candidate
-    reco::PFBlockRef blockref(blockHandle,pfo_idx);    
-    for( unsigned elem_idx = 0; elem_idx < blockref->elements().size(); ++elem_idx ) {
+    reco::PFBlockRef blockref(blockHandle,pfo_idx);   
+    reco::TrackRef hardest_track;
+    const edm::OwnVector<reco::PFBlockElement>& elements = blockref->elements();
+    for( unsigned elem_idx = 0; elem_idx < elements.size(); ++elem_idx ) {
+      if( reco::PFBlockElement::TRACK == elements[elem_idx].type() ) {
+	if( hardest_track.isNull() || hardest_track->pt() < elements[elem_idx].trackRef()->pt() ) {
+	  hardest_track = elements[elem_idx].trackRef();
+	}
+      }
       cand.addElementInBlock(blockref,elem_idx);
     }
+    if( hardest_track.isNonnull() && pandoraCharge) cand.setTrackRef(hardest_track);
   }
   iEvent.put(pandoraCands);
 }
