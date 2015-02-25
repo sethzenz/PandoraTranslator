@@ -15,5 +15,5 @@ HGCalTrackCollection = cms.EDProducer(
 #     HGC_HCALF = cms.string('HGCalHESiliconSensitive'),                                                
 #     HGC_HCALB = cms.string('HGCalHEScintillatorSensitive') ),                                          
                                     ),
-    UseFirstLayerOnly = cms.bool(True)
+#    UseFirstLayerOnly = cms.bool(True) # always true, no longer needed
 )
