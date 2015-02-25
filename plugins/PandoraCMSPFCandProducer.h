@@ -128,29 +128,31 @@ class CalibHGC {
       }
       else return 1.;
     }
+    // change this to return simply the number of x0s
     virtual double GetAbsCorrEM(unsigned int layer, double eta){
       if(layer==1 && m_id==ForwardSubdetector::HGCEE && useOverburdenCorrection){
         //lower bound: first element in map with key >= name
         typename std::map<double,double>::iterator lb = nOverburdenRadiationLengths.lower_bound(eta);
         if(lb != nOverburdenRadiationLengths.begin()) lb--;
         if(lb != nOverburdenRadiationLengths.end()){
-          return (nCellRadiationLengths[layer] + lb->second)/calibrationRadiationLength;
+          return nCellRadiationLengths[layer] + lb->second;
         }
         else return 1.;
       }
-      else return m_absorberCorrectionEM[layer];
+      else return nCellRadiationLengths[layer];
     }
+    // change this to return simply the number of lambdas
     virtual double GetAbsCorrHAD(unsigned int layer, double eta){
       if(layer==1 && m_id==ForwardSubdetector::HGCEE && useOverburdenCorrection){
         //lower bound: first element in map with key >= name
         typename std::map<double,double>::iterator lb = m_absorberCorrectionHADeta.lower_bound(eta);
         if(lb != m_absorberCorrectionHADeta.begin()) lb--;
         if(lb != m_absorberCorrectionHADeta.end()){
-          return lb->second;
+          return nCellInteractionLengths[layer] + lb->second;
         }
         else return 1.;
       }
-      else return m_absorberCorrectionHAD[layer];
+      else return nCellInteractionLengths[layer];
     }
     
     //helper functions

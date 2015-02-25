@@ -16,7 +16,7 @@ pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
 #   energyCorrMethod = cms.string('WEIGHTING'),
     energyWeightFile = cms.FileInPath('HGCal/PandoraTranslator/data/energyWeight.txt'),
 
-    calibrParFile = cms.FileInPath('HGCal/PandoraTranslator/data/pandoraCalibrPars.txt'),
+    calibrParFile = cms.FileInPath('HGCal/PandoraTranslator/data/pandoraCalibrPars_pedro24022015.txt'),
     layerDepthFile = cms.FileInPath('HGCal/PandoraTranslator/data/HGCmaterial_v5.root'),
     overburdenDepthFile = cms.FileInPath('RecoParticleFlow/PFClusterProducer/data/HGCMaterialOverburden.root'),
     useOverburdenCorrection = cms.bool(False), #disabled until the overburden values make sense

@@ -1,3 +1,5 @@
+import FWCore.ParameterSet.Config as cms
+
 HGCalTrackCollection = cms.EDProducer(
     "HGCalTrackCollectionProducer",
     src = cms.InputTag("pfTrack"),

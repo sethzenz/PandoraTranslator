@@ -25,7 +25,11 @@
     <!-- ALGORITHM SETTINGS -->
 
     <!-- Set calo hit properties, then select tracks and hits to use for clustering -->
-    <algorithm type = "CaloHitPreparationFast"/>
+    <algorithm type = "CaloHitPreparationFast">
+        <IsolationSearchSafetyFactor>2.</IsolationSearchSafetyFactor>
+        <IsolationCutDistanceFine>25.</IsolationCutDistanceFine>
+        <IsolationCutDistanceCoarse>200.</IsolationCutDistanceCoarse>
+    </algorithm>
     <algorithm type = "EventPreparation">
         <OutputTrackListName>Tracks</OutputTrackListName>
         <OutputCaloHitListName>CaloHits</OutputCaloHitListName>
