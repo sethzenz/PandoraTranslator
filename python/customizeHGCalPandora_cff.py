@@ -75,8 +75,10 @@ def cust_2023HGCalPandora_common(process):
             )
         print "RAW2DIGI only for EB FEDs"
     if hasattr(process,'reconstruction_step'):
-        process.particleFlowCluster += process.particleFlowRecHitHGC
-        process.particleFlowCluster += process.particleFlowClusterHGC
+        process.particleFlowRecHitHGCNoEB = cms.Sequence(process.particleFlowRecHitHGCEE+process.particleFlowRecHitHGCHEF)
+        process.particleFlowClusterHGCNoEB = cms.Sequence(process.particleFlowClusterHGCEE+process.particleFlowClusterHGCHEF)
+        process.particleFlowCluster += process.particleFlowRecHitHGCNoEB
+        process.particleFlowCluster += process.particleFlowClusterHGCNoEB
         if hasattr(process,'particleFlowSuperClusterECAL'):
             process.particleFlowSuperClusterHGCEE = process.particleFlowSuperClusterECAL.clone()
             process.particleFlowSuperClusterHGCEE.useHGCEmPreID = cms.bool(True)
