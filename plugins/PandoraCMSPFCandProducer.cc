@@ -1659,7 +1659,7 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
       }
       cand.addElementInBlock(blockref,elem_idx);
     }
-    if( hardest_track.isNonnull() && pandoraCharge) cand.setTrackRef(hardest_track);
+    if( hardest_track.isNonnull() && pandoraCharge != 0) cand.setTrackRef(hardest_track);
   }
   iEvent.put(pandoraCands);
   iEvent.put(pandoraElectronCands,electronOutputCol_); // SZ Feb 25 not filled yet
