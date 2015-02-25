@@ -98,24 +98,22 @@ def cust_2023HGCalPandora_common(process):
                         process.gsfElectrons.hOverEMethodEndcap = cms.int32(3)
                         process.gsfElectrons.hcalEndcapClusters = cms.InputTag('particleFlowClusterHGCHEF')  
         # load pandora customization (note we have removed HGC clusters entirely from standard ParticleFlow
-        # doing this                
-        process.load('HGCal.PandoraTranslator.HGCALTrackCollection_cfi')
+        # doing this)                
+        process.load('HGCal.PandoraTranslator.HGCalTrackCollection_cfi')
         process.load('HGCal.PandoraTranslator.runPandora_cfi')
-        process.particleFlowBlock.elementImporters[5].source = cms.InputTag('HGCALTrackCollection:TracksNotInHGCAL')
-        process.pandoraSequence = cms.Sequence(process.HGCALTrackCollection*
+        process.particleFlowBlock.elementImporters[5].source = cms.InputTag('HGCalTrackCollection:TracksNotInHGCal')
+        process.pandoraSequence = cms.Sequence(process.HGCalTrackCollection*
                                                process.particleFlowBlock*
                                                process.pandorapfanew)
         process.particleFlowReco.replace(process.particleFlowBlock,process.pandoraSequence)
-        process.pfListMerger
         process.particleFlowBarrel = process.particleFlowTmp.clone()        
         process.particleFlowTmp = cms.EDProducer(
             "PFCandidateListMerger",
-            std = edm.VInputTag("particleFlowBarrel",
+            src = cms.VInputTag("particleFlowBarrel",
                                 "pandorapfanew")
             )
         process.mergedParticleFlowSequence = cms.Sequence(process.particleFlowBarrel*process.particleFlowTmp)
         process.particleFlowReco.replace(process.particleFlowTmp,process.mergedParticleFlowSequence)
-
 
     #mod event content
     process.load('RecoLocalCalo.Configuration.hgcalLocalReco_EventContent_cff')
