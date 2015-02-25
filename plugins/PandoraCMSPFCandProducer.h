@@ -219,7 +219,6 @@ class CalibHGC {
     std::map<double,double> m_absorberCorrectionHADeta;
     std::vector<double> m_energyWeightEM;
     std::vector<double> m_energyWeightHAD;
-
 };
 
 
@@ -259,6 +258,7 @@ public:
                  edm::Event& iEvent);
   
   std::string _outputFileName;
+  std::string electronOutputCol_;
   edm::FileInPath m_pandoraSettingsXmlFile;
 
   edm::FileInPath m_calibrationParameterFile;
@@ -268,7 +268,6 @@ public:
   bool m_useOverburdenCorrection;
 
   std::string m_energyCorrMethod; //energy correction method
-
 
   void initPandoraCalibrParameters();
   void readCalibrParameterFile();
