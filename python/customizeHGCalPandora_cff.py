@@ -103,6 +103,7 @@ def cust_2023HGCalPandora_common(process):
         # doing this)                
         process.load('HGCal.PandoraTranslator.HGCalTrackCollection_cfi')
         process.load('HGCal.PandoraTranslator.runPandora_cfi')
+        process.pandorapfanew.pf_electron_output_col = process.particleFlowTmp.pf_electron_output_col
         process.particleFlowBlock.elementImporters[5].source = cms.InputTag('HGCalTrackCollection:TracksNotInHGCal')
         process.pandoraSequence = cms.Sequence(process.HGCalTrackCollection*
                                                process.particleFlowBlock*
@@ -112,7 +113,11 @@ def cust_2023HGCalPandora_common(process):
         process.particleFlowTmp = cms.EDProducer(
             "PFCandidateListMerger",
             src = cms.VInputTag("particleFlowBarrel",
-                                "pandorapfanew")
+                                "pandorapfanew"),
+            src1 = cms.VInputTag("particleFlowBarrel:"+str(process.particleFlowTmp.pf_electron_output_col),
+                                 "pandorapfanew:"+str(process.particleFlowTmp.pf_electron_output_col)),
+            label1 = process.particleFlowTmp.pf_electron_output_col
+
             )
         process.mergedParticleFlowSequence = cms.Sequence(process.particleFlowBarrel*process.particleFlowTmp)
         process.particleFlowReco.replace(process.particleFlowTmp,process.mergedParticleFlowSequence)

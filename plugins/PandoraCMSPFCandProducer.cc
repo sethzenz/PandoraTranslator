@@ -106,6 +106,13 @@ PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iCon
   produces<reco::PFBlockCollection>();
   produces<reco::PFCandidateCollection>();
 
+  // Produce some of the extra collections from PFProducer
+  electronOutputCol_
+    = iConfig.getParameter<std::string>("pf_electron_output_col");
+  produces<reco::PFCandidateCollection>(electronOutputCol_);
+  //    produces<reco::PFCandidateElectronExtraCollection>(electronExtraOutputCol_);
+  //    produces<reco::PFCandidatePhotonExtraCollection>(photonExtraOutputCol_);
+  
   //now do what ever initialization is needed
   m_pPandora = new pandora::Pandora();
   
@@ -1607,6 +1614,7 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
   
   //make candidates
   std::auto_ptr<reco::PFCandidateCollection> pandoraCands(new reco::PFCandidateCollection);
+  std::auto_ptr<reco::PFCandidateCollection> pandoraElectronCands(new reco::PFCandidateCollection); // SZ Feb 25 not filled yet
   for (auto itPFO = pPfoList->cbegin(); itPFO != pPfoList->cend(); ++itPFO){ 
     const unsigned pfo_idx = std::distance(pfoBegin,itPFO);
     const pandora::ParticleFlowObject& the_pfo = *(*itPFO);
@@ -1646,6 +1654,7 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
     }
   }
   iEvent.put(pandoraCands);
+  iEvent.put(pandoraElectronCands,electronOutputCol_); // SZ Feb 25 not filled yet
 }
 
 
