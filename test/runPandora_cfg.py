@@ -80,6 +80,7 @@ process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHGCEE_cfi")
 
 process.load('HGCal/PandoraTranslator/HGCALTrackCollection_cfi')
 
+<<<<<<< HEAD
 process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
     "TrackAssociatorEDProducer",
     label_tr = cms.InputTag("generalTracks"),
@@ -121,6 +122,9 @@ process.ak4PFJetsPandora = process.ak4PFJets.clone(src = cms.InputTag('pandorapf
 # cd ${CMSSW_BASE}/src
 # git clone https://github.com/sethzenz/HGCanalysis.git --branch hacked-interactions-filter UserCode/HGCanalysis
 # cd Usercode ; scram b -j 9
+=======
+process.load('HGCal.PandoraTranslator.runPandora_cfi')
+>>>>>>> 9d585be4fd96b3941e9337feca7bbb3707f4d786
 
 process.load("UserCode/HGCanalysis/hgcTrackerInteractionsFilter_cfi")
 
@@ -128,7 +132,11 @@ process.FEVTDEBUGHLToutput = cms.OutputModule("PoolOutputModule",
     splitLevel = cms.untracked.int32(0),
     eventAutoFlushCompressedSize = cms.untracked.int32(5242880),
     outputCommands = process.FEVTDEBUGHLTEventContent.outputCommands,
+<<<<<<< HEAD
     fileName = cms.untracked.string('file:/tmp/lgray/step_pandora_pu.root'),
+=======
+    fileName = cms.untracked.string('file:step_pandora.root'),
+>>>>>>> 9d585be4fd96b3941e9337feca7bbb3707f4d786
     dataset = cms.untracked.PSet(
         filterName = cms.untracked.string(''),
         dataTier = cms.untracked.string('GEN-SIM-RECO')

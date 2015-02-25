@@ -60,7 +60,7 @@
                 <algorithm type = "MipPhotonSeparation">
                     <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
-                <algorithm type = "SoftClusterMerging">
+                <algorithm type = "SoftClusterMergingFast">
                     <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
                 <algorithm type = "IsolatedHitMerging"/>
@@ -220,7 +220,7 @@
                 <algorithm type = "MipPhotonSeparation">
                     <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
-                <algorithm type = "SoftClusterMerging">
+                <algorithm type = "SoftClusterMergingFast">
                     <algorithm type = "TrackClusterAssociationFast"/>
                 </algorithm>
                 <algorithm type = "IsolatedHitMerging"/>

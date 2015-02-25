@@ -1,6 +1,9 @@
 import FWCore.ParameterSet.Config as cms
 
 pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
+    debugPrint = cms.bool(False), #for cout statements
+    debugHisto = cms.bool(False), #for diagnostic/calibration histograms
+    useRecoTrackAsssociation = cms.bool(False), #needed to turn off for 140PU                                                               
     HGCrechitCollection  = cms.InputTag("particleFlowRecHitHGCEE",""), 
     generaltracks = cms.InputTag("HGCalTrackCollection","TracksInHGCal"),
     tPRecoTrackAsssociation= cms.InputTag("trackingParticleRecoTrackAsssociation"),

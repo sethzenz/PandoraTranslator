@@ -57,7 +57,7 @@ private:
   const std::vector<double> _DPtovPtCut;
   const std::vector<unsigned> _NHitCut;
   const bool _useIterTracking;
-  const bool _useFirstLayerOnly;
+  //  const bool _useFirstLayerOnly; // always true now
 
   // variables needed for copied extrapolation
   edm::ESHandle<MagneticField> _bField;
@@ -67,6 +67,8 @@ private:
   std::array<std::vector<ReferenceCountingPointer<BoundDisk> >,1> _plusSurface,_minusSurface; // 3 --> 1; extrapolate to hgcee only
   std::unique_ptr<PropagatorWithMaterial> _mat_prop;
 
+  float _diskOuterRadius;
+  float _diskInnerRadius;
 };
 
 HGCalTrackCollectionProducer::HGCalTrackCollectionProducer(const edm::ParameterSet & iConfig) :
@@ -74,8 +76,8 @@ HGCalTrackCollectionProducer::HGCalTrackCollectionProducer(const edm::ParameterS
   _debug(iConfig.getParameter<bool>("debug")),
   _DPtovPtCut(iConfig.getParameter<std::vector<double> >("DPtOverPtCuts_byTrackAlgo")),
   _NHitCut(iConfig.getParameter<std::vector<unsigned> >("NHitCuts_byTrackAlgo")),
-  _useIterTracking(iConfig.getParameter<bool>("useIterativeTracking")),
-  _useFirstLayerOnly(iConfig.getParameter<bool>("UseFirstLayerOnly"))
+  _useIterTracking(iConfig.getParameter<bool>("useIterativeTracking"))
+  //  _useFirstLayerOnly(iConfig.getParameter<bool>("UseFirstLayerOnly")) // always true now
 {
 
   if (_debug) std::cout << " HGCalTrackCollectionProducer::HGCalTrackCollectionProducer " << std::endl;
@@ -112,23 +114,56 @@ void HGCalTrackCollectionProducer::beginLuminosityBlock(const edm::LuminosityBlo
     _plusSurface[i].clear();
     const HGCalDDDConstants &dddCons=_hgcGeometries[i]->topology().dddConstants();
     std::map<float,float> zrhoCoord;
+    std::map<float,float> innerRadiusCoord;
     auto firstLayerIt = dddCons.getFirstTrForm();
-    auto lastLayerIt = dddCons.getLastTrForm();
+    auto firstmod = dddCons.getFirstModule(true);
+    float Z(fabs(firstLayerIt->h3v.z()));
+    _diskInnerRadius = firstLayerIt->h3v.perp() - firstmod->h;
+    _diskOuterRadius = firstmod->h+firstLayerIt->h3v.perp();
+    if (_debug) std::cout << "O HAI I'm making a bound disk with Outer R=" << _diskOuterRadius << " Inner R=" << _diskInnerRadius << " and Z=" << Z << std::endl;
+    _minusSurface[i].push_back(ReferenceCountingPointer<BoundDisk> ( new BoundDisk( Surface::PositionType(0,0,-Z), rot, 
+										    new SimpleDiskBounds( _diskInnerRadius, _diskOuterRadius, -0.001, 0.001))));
+    _plusSurface[i].push_back(ReferenceCountingPointer<BoundDisk> ( new BoundDisk( Surface::PositionType(0,0,+Z), rot, 
+										   new SimpleDiskBounds( _diskInnerRadius, _diskOuterRadius, -0.001, 0.001))));
+  }
+}
+
+    /*
+    //    auto lastLayerIt = dddCons.getLastTrForm();
     for(auto layerIt=firstLayerIt; layerIt !=lastLayerIt; layerIt++) {
       float Z(fabs(layerIt->h3v.z()));
-	  auto lastmod = std::reverse_iterator<std::vector<HGCalDDDConstants::hgtrap>::const_iterator>(dddCons.getLastModule(true));
-      float Radius(lastmod->tl+layerIt->h3v.perp());
+      auto lastmod = std::reverse_iterator<std::vector<HGCalDDDConstants::hgtrap>::const_iterator>(dddCons.getLastModule(true));
+      auto firstmod = dddCons.getFirstModule(true);
+      float Radius(firstmod->h+layerIt->h3v.perp());
+      float innerRadius(layerIt->h3v.perp() - firstmod->h);
+      if (_debug) std::cout << " SCZ MEGADEBUG Radius=" << Radius << " layerIt->h3v.perp()=" << layerIt->h3v.perp() << " firstmod->h=" << firstmod->h << std::endl;
+      if (_debug) std::cout << " SCZ MEGADEBUG Radius=" << Radius << " layerIt->h3v.perp()=" << layerIt->h3v.perp() << " lastmod->h=" << lastmod->h << std::endl;
+      //      if (_debug) std::cout << " SCZ MEBADEBUG std::distance(firstmod,lastmod)=" << std::distance(firstmod,lastmod) << std::endl;
       zrhoCoord[Z]=Radius;
+      innerRadiusCoord[Z] = innerRadius;
+      // Note from Seth:
+      // I don't understand how the geometry works, and it's very hard to search the code base
+      // So this is hacky as hell
+      // The outer radius calculation I didn't touch, and it currently gives R = 126; with Z=320, this gives eta ~1.65
+      // (plausible but I expected 1.47)
+      // If I hypothesize that lastmod->tl is the inner radius, I get 28 cm for that, which gives eta ~3.13
+      // (also plausible but expected 3.0)
+      // sooooo.. close enough?
     }
     for(auto it=zrhoCoord.begin(); it != zrhoCoord.end(); it++) {
       float Z(it->first);
       float Radius(it->second);
-      _minusSurface[i].push_back(ReferenceCountingPointer<BoundDisk> ( new BoundDisk( Surface::PositionType(0,0,-Z), rot, new SimpleDiskBounds( 0, Radius, -0.001, 0.001))));
-      _plusSurface[i].push_back(ReferenceCountingPointer<BoundDisk> ( new BoundDisk( Surface::PositionType(0,0,+Z), rot, new SimpleDiskBounds( 0, Radius, -0.001, 0.001))));
+      float InnerRadius(innerRadiusCoord[it->first]);
+      if (_debug) std::cout << "O HAI I'm making a bound disk with Outer R=" << Radius << " Inner R=" << InnerRadius << " and Z=" << Z << std::endl;
+      _minusSurface[i].push_back(ReferenceCountingPointer<BoundDisk> ( new BoundDisk( Surface::PositionType(0,0,-Z), rot, new SimpleDiskBounds( InnerRadius, Radius, -0.001, 0.001))));
+      _plusSurface[i].push_back(ReferenceCountingPointer<BoundDisk> ( new BoundDisk( Surface::PositionType(0,0,+Z), rot, new SimpleDiskBounds( InnerRadius, Radius, -0.001, 0.001))));
+      _diskOuterRadius = Radius;
+      _diskInnerRadius = InnerRadius;
       if (_useFirstLayerOnly) break; // quick hack to take only innermost layer 
     }    
-  }  
+  }
 }
+    */
 
 void HGCalTrackCollectionProducer::produce(edm::Event & evt, const edm::EventSetup & iSetup) {
 
@@ -158,8 +193,18 @@ void HGCalTrackCollectionProducer::produce(edm::Event & evt, const edm::EventSet
 	if( piStateAtSurface.isValid() ) {
 	  if (_debug) std::cout << "Extrapolation is valid!" << std::endl;
 	  GlobalPoint pt = piStateAtSurface.globalPosition();
-	  if (_debug) std::cout << "(x,y,z)=(" << pt.x() << ", " << pt.y() << ", " << pt.z() << ")" << std::endl;
-	  found = true;
+	  if (pt.perp() < _diskOuterRadius) {
+	    if (pt.perp() > _diskInnerRadius) {
+	      if (_debug) std::cout << "(x,y,z,r)=(" << pt.x() << ", " << pt.y() << ", " << pt.z() << ", " << sqrt(pt.x()*pt.x() + pt.y()*pt.y()) << ")" << std::endl;
+	      if (_debug && fabs (tracks[i]->trackRef()->eta()) < 1.47) std::cout << " ETA IN BARREL REGION: " << tracks[i]->trackRef()->eta() 
+										  << " (PT: " << tracks[i]->trackRef()->pt() << ")" << std::endl;
+	      found = true;
+	    } else {
+	      if (_debug) std::cout << " but r=" << pt.perp() << " < diskInnerRadius=" << _diskInnerRadius << " so skipping " << std::endl;
+	    }
+	  } else {
+	    if (_debug) std::cout << " but r=" << pt.perp() << " > diskOuterRadius=" << _diskOuterRadius << " so skipping " << std::endl;
+	  }
 	} else {
 	  if (_debug) std::cout << "Extrapolation is NOT valid!" << std::endl;
 	  //	  outputNotInHGCal->push_back(*tracks[i]);
@@ -167,6 +212,7 @@ void HGCalTrackCollectionProducer::produce(edm::Event & evt, const edm::EventSet
       }
     }
     if (found) {
+      if (_debug) std::cout << " Track going to outputInHGCal pt eta " << tracks[i]->trackRef()->pt() << " " << tracks[i]->trackRef()->eta() << std::endl;
       outputInHGCal->push_back(*tracks[i]);
     } else {
       outputNotInHGCal->push_back(*tracks[i]);
