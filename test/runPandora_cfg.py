@@ -80,41 +80,6 @@ process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHGCEE_cfi")
 
 process.load('HGCal/PandoraTranslator/HGCALTrackCollection_cfi')
 
-<<<<<<< HEAD
-process.trackingParticleRecoTrackAsssociation = cms.EDProducer(
-    "TrackAssociatorEDProducer",
-    label_tr = cms.InputTag("generalTracks"),
-    associator = cms.string('quickTrackAssociatorByHits'),
-    label_tp = cms.InputTag("mix","MergedTrackTruth"),
-    ignoremissingtrackcollection = cms.untracked.bool(False)
-    )
-
-process.pandorapfanew = cms.EDProducer('PandoraCMSPFCandProducer',
-    debugPrint = cms.bool(False), #for cout statements
-    debugHisto = cms.bool(False), #for diagnostic/calibration histograms
-    HGCrechitCollection  = cms.InputTag("particleFlowRecHitHGCEE",""), 
-    generaltracks = cms.InputTag("HGCalTrackCollection","TracksInHGCal"),
-    useRecoTrackAsssociation = cms.bool(False), #needed to turn off for 140PU
-    tPRecoTrackAsssociation= cms.InputTag("trackingParticleRecoTrackAsssociation"),
-    genParticles= cms.InputTag("genParticles"),
-#    inputconfigfile = cms.string('PandoraSettingsDefault_WithoutMonitoring.xml'),
-#    inputconfigfile = cms.string('PandoraSettingsDefault.xml'),
-#    inputconfigfile = cms.string('PandoraSettingsBasic.xml'),
-    inputconfigfile = cms.FileInPath('HGCal/PandoraTranslator/data/PandoraSettingsBasic_cms.xml'),
-#    inputconfigfile = cms.string('PandoraSettingsMuon.xml')
-
-    energyCorrMethod = cms.string('ABSCORR'),
-#   absorber thickness correction
-#   energyCorrMethod = cms.string('WEIGHTING'),
-    energyWeightFile = cms.FileInPath('HGCal/PandoraTranslator/data/energyWeight.txt'),
-
-    calibrParFile = cms.FileInPath('HGCal/PandoraTranslator/data/pandoraCalibrPars_pedro24022015.txt'),
-    layerDepthFile = cms.FileInPath('HGCal/PandoraTranslator/data/HGCmaterial_v5.root'),
-    overburdenDepthFile = cms.FileInPath('RecoParticleFlow/PFClusterProducer/data/HGCMaterialOverburden.root'),
-    useOverburdenCorrection = cms.bool(False), #disabled until the overburden values make sense
-    outputFile = cms.string('pandoraoutput.root')
-)
-
 process.ak4PFJetsPandora = process.ak4PFJets.clone(src = cms.InputTag('pandorapfanew'))
 
 # To use the hgcTrackerInteractionsFilter, you need the following additional code
@@ -122,9 +87,7 @@ process.ak4PFJetsPandora = process.ak4PFJets.clone(src = cms.InputTag('pandorapf
 # cd ${CMSSW_BASE}/src
 # git clone https://github.com/sethzenz/HGCanalysis.git --branch hacked-interactions-filter UserCode/HGCanalysis
 # cd Usercode ; scram b -j 9
-=======
 process.load('HGCal.PandoraTranslator.runPandora_cfi')
->>>>>>> 9d585be4fd96b3941e9337feca7bbb3707f4d786
 
 process.load("UserCode/HGCanalysis/hgcTrackerInteractionsFilter_cfi")
 
@@ -132,11 +95,7 @@ process.FEVTDEBUGHLToutput = cms.OutputModule("PoolOutputModule",
     splitLevel = cms.untracked.int32(0),
     eventAutoFlushCompressedSize = cms.untracked.int32(5242880),
     outputCommands = process.FEVTDEBUGHLTEventContent.outputCommands,
-<<<<<<< HEAD
     fileName = cms.untracked.string('file:/tmp/lgray/step_pandora_pu.root'),
-=======
-    fileName = cms.untracked.string('file:step_pandora.root'),
->>>>>>> 9d585be4fd96b3941e9337feca7bbb3707f4d786
     dataset = cms.untracked.PSet(
         filterName = cms.untracked.string(''),
         dataTier = cms.untracked.string('GEN-SIM-RECO')
