@@ -379,6 +379,9 @@
     <algorithm type = "FinalParticleId"/>
     <algorithm type = "V0PfoCreation"/>
     <!--algorithm type = "DumpPfosMonitoring"/-->
+    <algorithm type = "EfficiencyMonitoringAlgorithm">
+      <MonitoringFileName>hamster.root</MonitoringFileName>
+    </algorithm>
     <algorithm type = "VisualMonitoring" description = "display all">
       <!--  draw specific named cluster lists -->
       <ClusterListNames> PrimaryClusterList </ClusterListNames>

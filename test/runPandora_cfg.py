@@ -62,10 +62,10 @@ process.source = cms.Source("PoolSource",
 #        'file:/afs/cern.ch/work/a/apsallid/public/step3_SinglePi0E20.root'
 #	 'file:/afs/cern.ch/user/l/lgray/work/public/CMSSW_6_2_X_SLHC_2014-07-17-0200/src/matrix_tests/140_pu/step3.root'
 #        "/store/cmst3/group/hgcal/CMSSW/Single22_CMSSW_6_2_0_SLHC23_patch1/RECO-PU0/Events_22_20_80.root"
-#        Pho100 # all photon files, 100 GeV
+        Pho100[0] # all photon files, 100 GeV
         #'file:/tmp/lgray/step3.root'
         #'file:simple_jets.root'
-        'file:/tmp/lgray/6EC19337-A7AE-E411-999E-0025905A613C.root'
+#        'file:/tmp/lgray/6EC19337-A7AE-E411-999E-0025905A613C.root'
     )
 )
 
@@ -78,7 +78,7 @@ process.load('Configuration.EventContent.EventContent_cff')
 process.load("Configuration.StandardSequences.Reconstruction_cff")
 process.load("RecoParticleFlow/PFClusterProducer/particleFlowRecHitHGCEE_cfi")
 
-process.load('HGCal/PandoraTranslator/HGCALTrackCollection_cfi')
+process.load('HGCal/PandoraTranslator/HGCalTrackCollection_cfi')
 
 process.ak4PFJetsPandora = process.ak4PFJets.clone(src = cms.InputTag('pandorapfanew'))
 
@@ -95,7 +95,7 @@ process.FEVTDEBUGHLToutput = cms.OutputModule("PoolOutputModule",
     splitLevel = cms.untracked.int32(0),
     eventAutoFlushCompressedSize = cms.untracked.int32(5242880),
     outputCommands = process.FEVTDEBUGHLTEventContent.outputCommands,
-    fileName = cms.untracked.string('file:/tmp/lgray/step_pandora_pu.root'),
+    fileName = cms.untracked.string('file:step_pandora_pu.root'),
     dataset = cms.untracked.PSet(
         filterName = cms.untracked.string(''),
         dataTier = cms.untracked.string('GEN-SIM-RECO')

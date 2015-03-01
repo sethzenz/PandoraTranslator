@@ -2,7 +2,7 @@
 
 <pandora>
     <!-- GLOBAL SETTINGS -->
-    <IsMonitoringEnabled>false</IsMonitoringEnabled>
+    <IsMonitoringEnabled>true</IsMonitoringEnabled>
     <ShouldDisplayAlgorithmInfo>false</ShouldDisplayAlgorithmInfo>
     <ShouldCollapseMCParticlesToPfoTarget>true</ShouldCollapseMCParticlesToPfoTarget>
 
@@ -369,6 +369,9 @@
     <!-- Particle flow object modification algorithms -->
     <algorithm type = "FinalParticleId"/>
     <algorithm type = "V0PfoCreation"/>
+    <algorithm type = "EfficiencyMonitoring">
+      <MonitoringFileName>hamster.root</MonitoringFileName>
+    </algorithm>
     <!--algorithm type = "DumpPfosMonitoring"/-->
     <!--algorithm type = "VisualMonitoring"/-->
 </pandora>

@@ -12,9 +12,12 @@ MIPs = [
 collnames = ["MIPs"]
 
 patterns = {"Pho":"/afs/cern.ch/user/s/sethzenz/store/cmst3/group/hgcal/CMSSW/Single22_CMSSW_6_2_0_SLHC23_patch1/RECO-PU0/Events_22_%i_%s.root",
-            "KL":"/afs/cern.ch/user/s/sethzenz/store/cmst3/group/hgcal/CMSSW/Single130-FixE_CMSSW_6_2_0_SLHC23_patch2/Events_130_%i_%s.root"}
+            "KL":"/afs/cern.ch/user/s/sethzenz/store/cmst3/group/hgcal/CMSSW/Single130-FixE_CMSSW_6_2_0_SLHC23_patch2/Events_130_%i_%s.root",
+            }
+
 for ene in [5,10,20,40,50,75,100,125,175,250,400,500]:
   for key in patterns.keys():
+if 
     exec "%s%i = ['%s' %% i for i in range(1,101)]" % (key,ene,patterns[key]%(ene,"%i"))
     exec 'collnames += ["%s%i"]' % (key,ene)
 

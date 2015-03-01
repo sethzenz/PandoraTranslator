@@ -94,7 +94,7 @@ namespace cms_content {
   }
 }
 
-pandora::Pandora * PandoraCMSPFCandProducer::m_pPandora = NULL;
+//pandora::Pandora * PandoraCMSPFCandProducer::m_pPandora = NULL;
 //
 // constructors and destructor
 //
@@ -114,7 +114,7 @@ PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iCon
   //    produces<reco::PFCandidatePhotonExtraCollection>(photonExtraOutputCol_);
   
   //now do what ever initialization is needed
-  m_pPandora = new pandora::Pandora();
+  m_pPandora.reset(new pandora::Pandora());
   
   inputTagHGCrechit_ = iConfig.getParameter<InputTag>("HGCrechitCollection");
   inputTagGeneralTracks_ = iConfig.getParameter<InputTag>("generaltracks");
@@ -1148,10 +1148,19 @@ void PandoraCMSPFCandProducer::preparemcParticle(edm::Event& iEvent){ // functio
     // Definition of the enpoint depends on the application that created the particle, e.g. the start point of the shower in a calorimeter.
     // If the particle was not created as a result of a continuous process where the parent particle continues, i.e.
     // hard ionization, Bremsstrahlung, elastic interactions, etc. then the vertex of the daughter particle is the endpoint.
-    parameters.m_endpoint = pandora::CartesianVector(pa->vx() * 10. , pa->vy() * 10., pa->vz() * 10. ); //IS THIS CORRECT?! //NO, should be where it starts to decay
+
+    //    parameters.m_endpoint = pandora::CartesianVector(pa->vx() * 10. , pa->vy() * 10., pa->vz() * 10. ); //IS THIS CORRECT?! //NO, should be where it starts to decay
+    if (pa->numberOfDaughters() > 0) {
+      // SZ - 28 Feb - is this right in all cases?
+      parameters.m_endpoint = pandora::CartesianVector(pa->daughter(0)->vx() * 10., pa->daughter(0)->vy() * 10., pa->daughter(0)->vz() * 10.);
+    } else {
+      parameters.m_endpoint = pandora::CartesianVector(999999.,999999.,999999.); // Is there an value for "no endpoint" ???? SZ
+      // We have to put something here or PandoraApi::MCParticle::Create asplodes
+    }
     parameters.m_particleId = pa->pdgId();
     parameters.m_mcParticleType = pandora::MCParticleType::MC_3D;
     parameters.m_pParentAddress = (void*) pa;
+    std::cout  << " SCZ MEGADEBUG The mc particle pdg id " << pa->pdgId() << " with energy " << pa->energy() << std::endl;
     if(i==0 && debugPrint) std::cout << "The mc particle pdg id " << pa->pdgId() << " with energy " << pa->energy() << std::endl;
     PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*m_pPandora, parameters));  
         

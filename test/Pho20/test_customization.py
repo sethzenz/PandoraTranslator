@@ -25,7 +25,7 @@ process.maxEvents = cms.untracked.PSet(
     input = cms.untracked.int32(10000)
 )
 
-from moreFiles import SZPho10
+from moreFiles import SZPho20
 
 # Input source
 process.source = cms.Source("PoolSource",
@@ -34,7 +34,7 @@ process.source = cms.Source("PoolSource",
 #        '/store/relval/CMSSW_6_2_0_SLHC23/RelValQCD_Pt_80_120_14TeV/GEN-SIM-DIGI-RAW/PU_PH2_1K_FB_V6_HGCalV5PU140-v1/00000/02A9D980-189C-E411-B8A0-0025905964A2.root')
 #        'file:/afs/cern.ch/user/s/sethzenz/work/public/step2_PhoGun_run2/step2_PhoGun_94.root')
 #        'file:/afs/cern.ch/work/s/sethzenz/public/step2_KLGun_run1/step2_KLGun_90.root')
-        SZPho10),
+        SZPho20),
          duplicateCheckMode = cms.untracked.string("noDuplicateCheck")
 )
 
@@ -70,10 +70,12 @@ process.RECOSIMoutput = cms.OutputModule("PoolOutputModule",
 from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:upgradePLS3')
 
+process.load("UserCode/HGCanalysis/hgcTrackerInteractionsFilter_cfi")
+
 # Path and EndPath definitions
 process.raw2digi_step = cms.Path(process.RawToDigi)
 process.L1Reco_step = cms.Path(process.L1Reco)
-process.reconstruction_step = cms.Path(process.reconstruction)
+process.reconstruction_step = cms.Path(process.trackerIntFilter*process.reconstruction)
 process.endjob_step = cms.EndPath(process.endOfProcess)
 process.RECOSIMoutput_step = cms.EndPath(process.RECOSIMoutput)
 

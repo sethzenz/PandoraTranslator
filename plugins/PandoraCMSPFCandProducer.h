@@ -229,7 +229,8 @@ public:
 
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
-  static pandora::Pandora        *m_pPandora;
+  //  static pandora::Pandora        *m_pPandora;
+  std::unique_ptr<pandora::Pandora> m_pPandora;
 
   void prepareTrack(edm::Event& iEvent);
   void prepareHits(edm::Event& iEvent);
