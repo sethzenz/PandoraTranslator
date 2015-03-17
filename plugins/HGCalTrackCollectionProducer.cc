@@ -120,7 +120,7 @@ void HGCalTrackCollectionProducer::beginLuminosityBlock(const edm::LuminosityBlo
     float Z(fabs(firstLayerIt->h3v.z()));
     _diskInnerRadius = firstLayerIt->h3v.perp() - firstmod->h;
     _diskOuterRadius = firstmod->h+firstLayerIt->h3v.perp();
-    if (_debug) std::cout << "O HAI I'm making a bound disk with Outer R=" << _diskOuterRadius << " Inner R=" << _diskInnerRadius << " and Z=" << Z << std::endl;
+    /*if (_debug)*/ std::cout << "O HAI I'm making a bound disk with Outer R=" << _diskOuterRadius << " Inner R=" << _diskInnerRadius << " and Z=" << Z << std::endl;
     _minusSurface[i].push_back(ReferenceCountingPointer<BoundDisk> ( new BoundDisk( Surface::PositionType(0,0,-Z), rot, 
 										    new SimpleDiskBounds( _diskInnerRadius, _diskOuterRadius, -0.001, 0.001))));
     _plusSurface[i].push_back(ReferenceCountingPointer<BoundDisk> ( new BoundDisk( Surface::PositionType(0,0,+Z), rot, 

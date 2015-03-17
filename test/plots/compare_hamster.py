@@ -6,11 +6,10 @@
 #
 # This is a python file for comparing hamsters.
 #
-
-inFilePho = "../Pho10/hamster.root"
-inFileKL = "../KL10/hamster.root"
-outDir = "/afs/cern.ch/user/s/sethzenz/www/cms/quick_28Feb/compare10"
-energy = 10.
+energy = 100
+inFilePho = "../Pho%i/hamster.root" % energy
+inFileKL = "../KL%i/hamster.root" % energy
+outDir = "/afs/cern.ch/user/s/sethzenz/www/cms/quick_28Feb/compare%i" % energy
 
 # If less than 7.5, need to look up more from
 # https://github.com/lgray/LCContent/blob/master/src/LCPlugins/LCParticleIdPlugins.cc#L21-L44
@@ -46,13 +45,13 @@ cutLines = {"totalElectromagneticEnergy":[], # ???
             "showerProfileChi2":[]
             }
 
-hNBminMaxNBins = {#"totalElectromagneticEnergy":[],
+hNBminMaxNBins = {"totalElectromagneticEnergy":[75,0.,1.5*energy],
             "mipFraction":[68,0.,0.68],
             "dCosR":[46,0.785,1.015],
             "clusterRms":[58,0.,58],
             "innerLayerRadLengths":[98,0.,98.],
             "energyAboveHighRadLengthsFrac":[110,0.,1.1],
-#            "energyAboveHighRadLengths":[],
+            "energyAboveHighRadLengths":[75,0.,1.5*energy],
             "radial90":[137,0.,137.],
             "nRadiationLengths90":[81,0.,81.],
             "showerMaxRadLengths":[81,0.,81.],

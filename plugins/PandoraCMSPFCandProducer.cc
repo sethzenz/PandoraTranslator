@@ -1,3 +1,8 @@
+#include "DataFormats/ForwardDetId/interface/HGCalDetId.h"
+#include "SimDataFormats/Track/interface/SimTrack.h"
+#include "SimDataFormats/Vertex/interface/SimVertex.h"
+#include "SimDataFormats/CaloHit/interface/PCaloHit.h"
+
 #include "PandoraCMSPFCandProducer.h"
 #include "HGCal/PandoraTranslator/interface/CMSBFieldPlugin.h"
 #include "HGCal/PandoraTranslator/interface/CMSPseudoLayerPlugin.h"
@@ -121,6 +126,16 @@ PandoraCMSPFCandProducer::PandoraCMSPFCandProducer(const edm::ParameterSet& iCon
   inputTagtPRecoTrackAsssociation_ = iConfig.getParameter<InputTag>("tPRecoTrackAsssociation");
   inputTagGenParticles_ = iConfig.getParameter<InputTag>("genParticles");
   m_pandoraSettingsXmlFile = iConfig.getParameter<edm::FileInPath>("inputconfigfile");
+
+  inputTagSimTracks_ = iConfig.getUntrackedParameter<InputTag>("simTracks",InputTag("g4SimHits"));
+  inputTagSimHGCHitsEE_ = iConfig.getUntrackedParameter<InputTag>("SimHGCHitsEE",InputTag("g4SimHits:HGCHitsEE"));
+  inputTagSimHGCHitsHEback_ = iConfig.getUntrackedParameter<InputTag>("SimHGCHitsHEback",InputTag("g4SimHits:HGCHitsHEback"));
+  inputTagSimHGCHitsHEfront_ = iConfig.getUntrackedParameter<InputTag>("SimHGCHitsHEfront",InputTag("g4SimHits:HGCHitsHEfront"));
+
+
+  /*
+    vector<PCaloHit>                      "g4SimHits"                 "HGCHitsEE"       "SIM"                                                                                              vector<PCaloHit>                      "g4SimHits"                 "HGCHitsHEback"   "SIM"                                                                                        vector<PCaloHit>                      "g4SimHits"                 "HGCHitsHEfront"   "SIM"                                                                                      */ 
+
 
   m_calibrationParameterFile = iConfig.getParameter<edm::FileInPath>("calibrParFile");
   m_energyCorrMethod = iConfig.getParameter<std::string>("energyCorrMethod");
@@ -346,7 +361,7 @@ void PandoraCMSPFCandProducer::prepareGeometry(){ // function to setup a geometr
   
   // Additions
   const HGCalGeometry* HGCEEGeometry = hgceeGeoHandle.product() ; 
-  const HGCalGeometry* HGCHEFGeometry = hgchefGeoHandle.product() ; 
+  const HGCalGeometry* HGCHEFGeometry = hgchefGeoHandle.product() ;
   const HGCalGeometry* HGCHEBGeometry = hgchebGeoHandle.product() ; 
   
   std::vector<DetId> ecalBarrelCells = geoHandle->getValidDetIds(DetId::Ecal, EcalBarrel);
@@ -1113,6 +1128,13 @@ void PandoraCMSPFCandProducer::preparemcParticle(edm::Event& iEvent){ // functio
 
   edm::Handle<std::vector<reco::GenParticle> > genpart;
   iEvent.getByLabel(inputTagGenParticles_,genpart);
+
+  edm::Handle<std::vector<int> > genBarcodes;
+  iEvent.getByLabel(inputTagGenParticles_,genBarcodes);  
+
+  // Wrong kind of thingy
+  //  edm::Handle<edm::HepMCProduct> evtMC;
+  //  iEvent.getByLabel(inputTagGenParticles_,evtMC);
   
    const GenParticle * firstMCp = &(*genpart)[0];
    if (firstMCp) {
@@ -1133,12 +1155,158 @@ void PandoraCMSPFCandProducer::preparemcParticle(edm::Event& iEvent){ // functio
   ZminVtxDaughter[0] = 999999.; //initialise for each event
   ZminVtxDaughter[1] = 999999.; //initialise for each event
                                 //FIXME Attention will crash for one particle sample  
-     
   isDecayedBeforeCalo[0] = 0;
   isDecayedBeforeCalo[1] = 0;
 
+  /*
+  vector<PCaloHit>                      "g4SimHits"                 "HGCHitsEE"       "SIM"
+    vector<PCaloHit>                      "g4SimHits"                 "HGCHitsHEback"   "SIM"
+    vector<PCaloHit>                      "g4SimHits"                 "HGCHitsHEfront"   "SIM"
+  */
+
+  edm::Handle<reco::PFRecHitCollection> HGCRecHitHandle;
+
+  iEvent.getByLabel(inputTagHGCrechit_, HGCRecHitHandle);
+
+  reco::PFRecHitCollection theHGCRecHits;
+  theHGCRecHits.insert(theHGCRecHits.end(),HGCRecHitHandle->begin(),HGCRecHitHandle->end());
+
+  edm::Handle<std::vector<PCaloHit> > HGCHitsEE;
+  edm::Handle<std::vector<PCaloHit> > HGCHitsHEback;
+  edm::Handle<std::vector<PCaloHit> > HGCHitsHEfront;
+  iEvent.getByLabel(inputTagSimHGCHitsEE_,HGCHitsEE);
+  iEvent.getByLabel(inputTagSimHGCHitsHEback_,HGCHitsHEback);
+  iEvent.getByLabel(inputTagSimHGCHitsHEfront_,HGCHitsHEfront);
+
+  std::vector<std::vector<PCaloHit> > theHGCHits;
+  theHGCHits.resize(3);
+  theHGCHits[0].insert(theHGCHits[0].end(),HGCHitsEE->begin(),HGCHitsEE->end());
+  theHGCHits[1].insert(theHGCHits[1].end(),HGCHitsHEfront->begin(),HGCHitsHEfront->end());
+  theHGCHits[2].insert(theHGCHits[2].end(),HGCHitsHEback->begin(),HGCHitsHEback->end());
+
+
+  edm::Handle<std::vector<SimTrack> > simTk;
+  edm::Handle<std::vector<SimVertex> > simVtx;
+  iEvent.getByLabel(inputTagSimTracks_,simTk);
+  iEvent.getByLabel(inputTagSimTracks_,simVtx);
+  
+  std::vector<SimTrack> theSimTracks;
+  std::vector<SimVertex> theSimVertexes;
+
+  theSimTracks.insert(theSimTracks.end(),simTk->begin(),simTk->end());
+  theSimVertexes.insert(theSimVertexes.end(),simVtx->begin(),simVtx->end());
+
+ // Get the ecal/hcal barrel, endcap geometry                                                                                                                                       
+  //  const EcalBarrelGeometry* ecalBarrelGeometry = dynamic_cast< const EcalBarrelGeometry* > (geoHandle->getSubdetectorGeometry(DetId::Ecal, EcalBarrel));
+  //  const HcalGeometry* hcalBarrelGeometry = dynamic_cast< const HcalGeometry* > (geoHandle->getSubdetectorGeometry(DetId::Hcal, HcalBarrel));
+  //  assert( ecalBarrelGeometry );
+  //  assert( hcalBarrelGeometry );
+
+  // Additions                                                                                                                                                                      
+  //  const HGCalGeometry* HGCEEGeometry = hgceeGeoHandle.product() ;
+  //  const HGCalGeometry* HGCHEFGeometry = hgchefGeoHandle.product() ;
+  //  const HGCalGeometry* HGCHEBGeometry = hgchebGeoHandle.product() ;
+  std::vector<const HGCalGeometry*> geom;
+  geom.resize(3);
+  geom[0] = hgceeGeoHandle.product();
+  geom[1] = hgchefGeoHandle.product();
+  geom[2] = hgchebGeoHandle.product();
+
+
+  for (unsigned int i = 0 ; i < theHGCHits.size() ; i++) {
+    uint32_t mySubDet(ForwardSubdetector::HGCEE);
+    if(i==1) mySubDet=ForwardSubdetector::HGCHEF;
+    else if(i==2) mySubDet=ForwardSubdetector::HGCHEB;
+
+    const HGCalTopology &topo=geom[i]->topology();
+    const HGCalDDDConstants &dddConst=topo.dddConstants(); 
+
+    for(std::vector<PCaloHit>::iterator hit_it = theHGCHits[i].begin(); hit_it != theHGCHits[i].end(); ++hit_it) 
+      {
+	//gang SIM->RECO cells to get final layer assignment  
+	HGCalDetId simId(hit_it->id());
+	int layer(simId.layer()),cell(simId.cell());
+	std::pair<int,int> recoLayerCell=dddConst.simToReco(cell,layer,topo.detectorType());
+	cell  = recoLayerCell.first;
+	layer = recoLayerCell.second;
+	if(layer<0) continue;
+
+	std::cout << " SCZ GIGADEBUG detector cell layer " << i << " " << cell << " " << layer << std::endl;
+	      
+	//get global position
+	uint32_t recoDetId = ( (i==0) ?
+			       (uint32_t)HGCEEDetId(ForwardSubdetector(mySubDet),simId.zside(),layer,simId.sector(),simId.subsector(),cell) :
+			       (uint32_t)HGCHEDetId(ForwardSubdetector(mySubDet),simId.zside(),layer,simId.sector(),simId.subsector(),cell)
+			       );
+
+	std::cout << "   SCZ GIGADEBUG has recoDetId " << recoDetId << " and energy " << hit_it->energy() << std::endl;
+	for(unsigned int irechit =0 ; irechit < theHGCRecHits.size() ; irechit++) {
+	  if (theHGCRecHits[irechit].detId() == recoDetId) {
+	    std::cout << "    SCZ GIGADEBUG matching rechit by id has energy " << theHGCRecHits[irechit].energy() << std::endl;
+	  }
+	}
+      }
+  }
+  /*
+  for (unsigned int isimhit = 0; isimhit < theHGCHits[0].size(); isimhit++){
+    std::cout << " SCZ MEGADEBUG HGCHitsEE " << isimhit << " detid " << theHGCHits[0][isimhit].id() << " geantTrackId " << theHGCHits[0][isimhit].geantTrackId()  << std::endl;
+    for(unsigned int irechit =0 ; irechit < theHGCRecHits.size() ; irechit++) {
+      if (theHGCRecHits[irechit].detId() == theHGCHits[0][isimhit].id()) {
+	std::cout << "    SCZ MEGADEBUG matching rechit by id " << irechit <<std::endl;
+      }
+    }
+    for (unsigned int isimtk = 0; isimtk < theSimVertexes.size(); isimtk++){
+      if ((unsigned int)theSimTracks[isimtk].trackId() == (unsigned int)theHGCHits[0][isimhit].geantTrackId()) {
+	std::cout << "    SCZ MEGADEBUG matching track by id " << isimtk << std::endl;
+      }
+    }
+  }
+  */
+
+  for(unsigned int irechit =0 ; irechit < theHGCRecHits.size() ; irechit++) {
+    std::cout << " SCZ MEGADEBUG rechit has id " << theHGCRecHits[irechit].detId() << std::endl;
+  }
+
+
+  //  bool dumpHepMC = true;
+  std::cout << "\n SimVertex / SimTrack structure dump \n" << std::endl;
+  std::cout << " SimVertex in the event = " << theSimVertexes.size() << std::endl;
+  std::cout << " SimTracks in the event = " << theSimTracks.size() << std::endl;
+  std::cout << "\n" << std::endl;
+  for (unsigned int isimvtx = 0; isimvtx < theSimVertexes.size(); isimvtx++){
+    std::cout << "SimVertex " << isimvtx << " = " << theSimVertexes[isimvtx] << "\n" << std::endl;
+    for (unsigned int isimtk = 0; isimtk < theSimTracks.size() ; isimtk++ ) {
+      if ( theSimTracks[isimtk].vertIndex() >= 0 && std::abs(theSimTracks[isimtk].vertIndex()) == (int)isimvtx ) {
+	std::cout<<"  SimTrack " << isimtk << " = "<< theSimTracks[isimtk] 
+		 <<" Track Id = "<<theSimTracks[isimtk].trackId()<< std::endl;
+
+	// for debugging purposes
+	/*
+	if (dumpHepMC ) {
+	  if ( theSimTracks[isimtk].genpartIndex() != -1 ) {
+	    HepMC::GenParticle* part = evtMC->GetEvent()->barcode_to_particle( theSimTracks[isimtk].genpartIndex() ) ;
+	    if ( part ) { std::cout << "  ---> Corresponding to HepMC particle " << *part << std::endl; }
+	    else { std::cout << " ---> Corresponding HepMC particle to barcode " << theSimTracks[isimtk].genpartIndex() << " not in selected event " << std::endl; }
+	  }
+	}
+	*/
+      }
+    }
+    std::cout << "\n" << std::endl;
+  }
+   
+  for (std::vector<SimTrack>::iterator isimtk = theSimTracks.begin();
+       isimtk != theSimTracks.end(); ++isimtk){
+    if(isimtk->noVertex()){
+      std::cout<<"SimTrack without an associated Vertex = "<< *isimtk <<std::endl;
+    }
+  }
+
+
   for(size_t i = 0; i < genpart->size(); ++ i) {
     const GenParticle * pa = &(*genpart)[i];
+    int genBarcode = genBarcodes->at(i);
+    
     PandoraApi::MCParticle::Parameters parameters;
     parameters.m_energy = pa->energy(); 
     parameters.m_momentum = pandora::CartesianVector(pa->px() , pa->py(),  pa->pz() );
@@ -1160,7 +1328,79 @@ void PandoraCMSPFCandProducer::preparemcParticle(edm::Event& iEvent){ // functio
     parameters.m_particleId = pa->pdgId();
     parameters.m_mcParticleType = pandora::MCParticleType::MC_3D;
     parameters.m_pParentAddress = (void*) pa;
-    std::cout  << " SCZ MEGADEBUG The mc particle pdg id " << pa->pdgId() << " with energy " << pa->energy() << std::endl;
+    if (pa->pdgId() == 22) {
+      std::cout  << " SCZ MEGADEBUG The mc particle pdg id " << pa->pdgId() << " with energy " << pa->energy() << " and status " << pa->status() 
+		 << " and eta " << pa->eta()  << " phi " << pa->phi() << " and pt " << pa->pt()
+		 << " and ndau " << pa->numberOfDaughters() << " and barcode " << genBarcode << std::endl;
+
+      for (unsigned int isimtk = 0; isimtk < theSimTracks.size() ; isimtk++ ) {
+	if (theSimTracks[isimtk].genpartIndex() == genBarcode) {
+	  const math::XYZVectorD tracker_pos = theSimTracks[isimtk].trackerSurfacePosition();
+	  std::cout << " SCZ GIGADEBUG tk match with barcode " << genBarcode << " and eta phi at edge of tracker " << tracker_pos.Eta() << " " << tracker_pos.Phi() << std::endl;
+	}
+      }
+      for (unsigned int isimvtx = 0; isimvtx < theSimVertexes.size(); isimvtx++){
+        if (theSimVertexes[isimvtx].parentIndex() == genBarcode) {
+	  std::cout << " SCZ GIGADEBUG vtx parentIndex match with barcode " << genBarcode << std::endl;
+	    // " and type " << theSimVertexes[isimvtx].processType() << std::endl;  // Nope, didn't make it into CMSSW 6
+	  unsigned int neplus = 0;
+	  unsigned int neminus = 0;
+	  unsigned int nother = 0;
+	  for (unsigned int jsimtk = 0; jsimtk < theSimTracks.size() ; jsimtk++ ) {
+	    if ( theSimTracks[jsimtk].vertIndex() >= 0 && std::abs(theSimTracks[jsimtk].vertIndex()) == (int)isimvtx ) {
+	      const math::XYZVectorD tracker_pos = theSimTracks[jsimtk].trackerSurfacePosition();
+	      std::cout << "    SCZ GIGADEBUG track from the above vertex with pdgId " << theSimTracks[jsimtk].type() 
+			<< " and eta phi at edge of tracker " << tracker_pos.Eta() << " " << tracker_pos.Phi() << std::endl;
+	      switch (theSimTracks[jsimtk].type()) {
+	      case 11:
+		neplus++;
+		break;
+	      case -11:
+		neminus++;
+		break;
+	      default:
+		nother++;
+		break;
+	      }
+	    }
+	  }
+	  std::cout << "  SCZ GIGADEBUG neplus=" << neplus << " neminus=" << neminus << " nother=" << nother << std::endl;
+	  if (neplus == 1 && neminus == 1 && nother == 0) {
+	    std::cout << "   SCZ GIGADEBUG This is a conversion!" << std::endl;
+
+	    // Overwrite photon end point - n.b. they never have daugheters so right now it's (999999,999999,999999) anyway
+	    const math::XYZTLorentzVectorD conv_pos = theSimVertexes[isimvtx].position();
+	    parameters.m_endpoint = pandora::CartesianVector(conv_pos.X() * 10.,conv_pos.Y() * 10.,conv_pos.Z() * 10.); // in mm                                
+
+	    for (unsigned int jsimtk = 0; jsimtk < theSimTracks.size() ; jsimtk++ ) {
+	      PandoraApi::MCParticle::Parameters simtrack_parameters;
+	      const math::XYZTLorentzVectorD p4 = theSimTracks[jsimtk].trackerSurfaceMomentum();
+	      simtrack_parameters.m_energy = p4.E();
+	      simtrack_parameters.m_momentum = pandora::CartesianVector(p4.Px() , p4.Py(), p4.Pz());
+	      simtrack_parameters.m_vertex = parameters.m_endpoint;
+	      const math::XYZVectorD tracker_pos = theSimTracks[jsimtk].trackerSurfacePosition();
+	      simtrack_parameters.m_endpoint  = pandora::CartesianVector(tracker_pos.X() * 10.,tracker_pos.Y() * 10.,tracker_pos.Z() * 10.); // in mm 
+	    }
+	  }
+	}
+	/*
+        if ((int)theSimVertexes[isimvtx].vertexId() == genBarcode) {
+	  std::cout << " SCZ GIGADEBUG vtx vertexId match with barcode " << genBarcode << std::endl;
+	}
+	*/
+      }
+
+
+	//	std::cout << " SCZ GIGADEBUG " << theSimTracks[isimtk].energy() 
+	/*
+	HepMC::GenParticle* part = evtMC->GetEvent()->barcode_to_particle( theSimTracks[isimtk].genpartIndex() );
+	if (part->barcode() == pa->barcode()) {
+	  std::cout << " SCZ GIGADEBUG particle from matching simtrack: pdg id " << part->pdgId() << " with energy " << part->energy() << " and status " << part->status()
+		    << " and ndau " << part->numberOfDaughters() << std::endl;
+	}
+	*/
+      //      }
+    }
     if(i==0 && debugPrint) std::cout << "The mc particle pdg id " << pa->pdgId() << " with energy " << pa->energy() << std::endl;
     PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*m_pPandora, parameters));  
         
@@ -1185,6 +1425,11 @@ void PandoraCMSPFCandProducer::preparemcParticle(edm::Event& iEvent){ // functio
          if (ZminVtxDaughter[i]>da->vz())
             ZminVtxDaughter[i] = da->vz();
       }
+
+      if (pa->pdgId() == 22) {
+	std::cout  << "   SCZ MEGADEBUG photon daughter mc particle pdg id " << da->pdgId() << " with  energy " << da->energy() << " and status " << da->status() << std::endl;
+      }
+
   
       PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetMCParentDaughterRelationship(*m_pPandora, pa , da));  
     }
@@ -1507,6 +1752,9 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
     
     // keep tabs on if this PFO was EM or HAD
     const bool pfoIsEM = ( 22 == (*itPFO)->GetParticleId() || 11 == std::abs((*itPFO)->GetParticleId()) ) ;
+
+    std::cout << " SCZ MEGADEBUG PFO ID " << (*itPFO)->GetParticleId() << " " << " clusterList.size() " << clusterList.size()  
+	      << " (*itPFO)->GetTrackList().size() " << (*itPFO)->GetTrackList().size() << std::endl;
     
     for (auto clusterIter = clusterList.cbegin(); clusterIter != clusterList.cend(); ++clusterIter){
       // keep track of clusters used by the PFOs
@@ -1545,6 +1793,7 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
       }
 
       if( pCluster->IsTrackSeeded() ) {
+	std::cout << "   SCZ GIGADEBUG A TRACK-SEEDED CLUSTER!" << std::endl;
         const auto* pandoraTrack = pCluster->GetTrackSeed();
         auto iter = recTrackMap.find(pandoraTrack->GetParentTrackAddress());
         if( iter != recTrackMap.end() ) {
@@ -1554,6 +1803,8 @@ void PandoraCMSPFCandProducer::convertPandoraToCMSSW(const edm::Handle<reco::PFR
           throw cms::Exception("TrackUsedButNotFound")
             << "Track used in PandoraPFA was not found in the original input track list!";
         }
+      } else {
+	std::cout << "   SCZ GIGADEBUG A *NON*-TRACK-SEEDED CLUSTER!"<< std::endl;
       }
       
       //loop over calo hits in cluster

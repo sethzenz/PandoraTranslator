@@ -309,6 +309,11 @@ private:
   edm::InputTag    inputTagtPRecoTrackAsssociation_;
   edm::InputTag    inputTagGenParticles_;
   edm::InputTag    inputTagGeneralTracks_;
+
+  edm::InputTag    inputTagSimTracks_;
+  edm::InputTag inputTagSimHGCHitsEE_;
+  edm::InputTag inputTagSimHGCHitsHEfront_;
+  edm::InputTag inputTagSimHGCHitsHEback_;
   //std::vector<std::string> mFileNames;
   
   // hash tables to translate back to CMSSW collection index from Pandora
